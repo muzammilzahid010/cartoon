@@ -240,8 +240,15 @@ export async function checkVideoStatus(
   
   // Decode HTML entities in the URL (VEO 3 returns &amp; instead of &)
   if (videoUrl) {
-    videoUrl = videoUrl.replace(/&amp;/g, '&');
+    // Use a comprehensive HTML entity decoder
+    videoUrl = videoUrl
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
     console.log(`[VEO3] Found video URL (decoded): ${videoUrl}`);
+    console.log(`[VEO3] URL contains &amp;: ${videoUrl.includes('&amp;')}`);
   } else {
     console.log(`[VEO3] No video URL found in response`);
   }
