@@ -147,12 +147,12 @@ export default function Home() {
 
       // Poll for completion
       const { operationName, sceneId } = result;
-      const maxAttempts = 60; // 5 minutes max
+      const maxAttempts = 300; // 5 minutes max with 1s polling
       
       for (let i = 0; i < maxAttempts; i++) {
         if (abortController.signal.aborted) break;
         
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         
         if (abortController.signal.aborted) break;
         
