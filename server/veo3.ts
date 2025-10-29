@@ -238,8 +238,10 @@ export async function checkVideoStatus(
     videoUrl = (operationData.operation as any).downloadUrl;
   }
   
+  // Decode HTML entities in the URL (VEO 3 returns &amp; instead of &)
   if (videoUrl) {
-    console.log(`[VEO3] Found video URL: ${videoUrl}`);
+    videoUrl = videoUrl.replace(/&amp;/g, '&');
+    console.log(`[VEO3] Found video URL (decoded): ${videoUrl}`);
   } else {
     console.log(`[VEO3] No video URL found in response`);
   }
