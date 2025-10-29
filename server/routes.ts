@@ -165,8 +165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Connection', 'keep-alive');
 
       const videos = [];
+      const operations: Array<{ operationName: string; sceneId: string; scene: any }> = [];
 
-      // Process scenes sequentially
+      // STEP 1: Start all video generation requests with 5-second delays between each
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
         
@@ -177,11 +178,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             current: i + 1, 
             total: scenes.length,
             sceneNumber: scene.scene,
-            status: 'starting'
+            status: 'starting_request'
           })}\n\n`);
 
           // Start video generation with character context
           const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, apiKey, characters);
+          
+          operations.push({ operationName, sceneId, scene });
 
           // Send started update
           res.write(`data: ${JSON.stringify({ 
@@ -189,28 +192,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             current: i + 1, 
             total: scenes.length,
             sceneNumber: scene.scene,
-            status: 'generating'
+            status: 'request_sent'
           })}\n\n`);
 
-          // Wait for completion
-          const result = await waitForVideoCompletion(operationName, sceneId, apiKey);
-
-          videos.push({
-            sceneNumber: scene.scene,
-            sceneTitle: scene.title,
-            videoUrl: result.videoUrl,
-            status: 'completed'
-          });
-
-          // Send completed update
-          res.write(`data: ${JSON.stringify({ 
-            type: 'video_complete', 
-            sceneNumber: scene.scene,
-            videoUrl: result.videoUrl
-          })}\n\n`);
+          // Wait 5 seconds before sending the next request (unless it's the last scene)
+          if (i < scenes.length - 1) {
+            console.log(`[VEO3] Waiting 5 seconds before starting next scene request...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
 
         } catch (error) {
-          console.error(`Error generating video for scene ${scene.scene}:`, error);
+          console.error(`Error starting video generation for scene ${scene.scene}:`, error);
           
           videos.push({
             sceneNumber: scene.scene,
@@ -222,6 +214,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'error', 
             sceneNumber: scene.scene,
+            error: error instanceof Error ? error.message : "Unknown error"
+          })}\n\n`);
+        }
+      }
+
+      // STEP 2: Now poll for completion of all started operations
+      for (const op of operations) {
+        try {
+          res.write(`data: ${JSON.stringify({ 
+            type: 'progress', 
+            sceneNumber: op.scene.scene,
+            status: 'generating'
+          })}\n\n`);
+
+          // Wait for completion
+          const result = await waitForVideoCompletion(op.operationName, op.sceneId, apiKey);
+
+          videos.push({
+            sceneNumber: op.scene.scene,
+            sceneTitle: op.scene.title,
+            videoUrl: result.videoUrl,
+            status: 'completed'
+          });
+
+          // Send completed update
+          res.write(`data: ${JSON.stringify({ 
+            type: 'video_complete', 
+            sceneNumber: op.scene.scene,
+            videoUrl: result.videoUrl
+          })}\n\n`);
+
+        } catch (error) {
+          console.error(`Error waiting for video completion for scene ${op.scene.scene}:`, error);
+          
+          videos.push({
+            sceneNumber: op.scene.scene,
+            sceneTitle: op.scene.title,
+            error: error instanceof Error ? error.message : "Unknown error",
+            status: 'failed'
+          });
+
+          res.write(`data: ${JSON.stringify({ 
+            type: 'error', 
+            sceneNumber: op.scene.scene,
             error: error instanceof Error ? error.message : "Unknown error"
           })}\n\n`);
         }
