@@ -207,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const videos = [];
       const operations: Array<{ operationName: string; sceneId: string; scene: any }> = [];
 
-      // STEP 1: Start all video generation requests with 5-second delays between each
+      // STEP 1: Start all video generation requests quickly (1 second delay to avoid rate limits)
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
         
@@ -239,10 +239,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString()
           })}\n\n`);
 
-          // Wait 5 seconds before sending the next request (unless it's the last scene)
+          // Short 1 second delay to avoid rate limits (unless it's the last scene)
           if (i < scenes.length - 1) {
-            console.log(`[VEO3] Waiting 5 seconds before starting next scene request...`);
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
         } catch (error) {
