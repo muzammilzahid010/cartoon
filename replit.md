@@ -43,9 +43,13 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure**:
 - RESTful endpoint architecture
-- Single main endpoint: `POST /api/generate-scenes` for scene generation
+- Authentication endpoints: `POST /api/login`, `POST /api/logout`, `GET /api/session`, `POST /api/users`
+- Scene generation endpoint: `POST /api/generate-scenes`
+- Video generation endpoints: `POST /api/generate-video`, `POST /api/generate-all-videos`
+- Video merging endpoint: `POST /api/merge-videos`
 - Request validation using Zod schemas shared between client and server
 - Error handling with appropriate HTTP status codes
+- Session-based authentication with express-session and MemoryStore
 
 **Server Organization**:
 - `server/index.ts` - Express server setup and middleware configuration
@@ -64,10 +68,19 @@ Preferred communication style: Simple, everyday language.
 - Database prepared but not currently utilized for runtime storage
 
 **Data Models**:
-- Users table with username/password fields
+- Users table with id, username, password (hashed with bcrypt), isAdmin fields
 - Character schema: id, name, description
 - Story input schema: script (min 50 chars), characters array (min 1)
 - Scene output schema: scene number, title, description with structured elements
+
+**Authentication System**:
+- Session-based authentication using express-session with MemoryStore
+- Password hashing with bcrypt (10 salt rounds) for secure storage
+- Default admin account: username `admin`, password `admin123` (hashed)
+- Role-based access control with isAdmin flag
+- Protected routes using requireAuth and requireAdmin middleware
+- Login, logout, and session management endpoints
+- User creation restricted to admin users only
 
 ### External Dependencies
 
@@ -117,7 +130,17 @@ Preferred communication style: Simple, everyday language.
 
 ### Application Flow
 
+**Authentication Pages:**
+- **Login Page (`/login`)**: Form with username/password fields, displays default admin credentials
+- **Admin Page (`/admin`)**: Protected page for creating new user accounts (admin only)
+  - Form to create users with username, password, and admin role toggle
+  - Requires admin authentication to access
+  - Shows logout and home navigation
+
+**Main Application Flow:**
 1. **Landing (Step 0)**: Hero page with call-to-action to start creating
+   - Header shows Login button if not authenticated
+   - Header shows username, Admin button (if admin), and Logout button if authenticated
 2. **Input (Step 1)**: Multi-character form with script textarea and dynamic character inputs
 3. **Scene Generation (Step 2)**: Loading state with animated feedback while AI generates scenes
    - Automatic retry logic handles failures transparently
