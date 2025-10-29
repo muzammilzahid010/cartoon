@@ -88,6 +88,13 @@ Preferred communication style: Simple, everyday language.
 - Server-Sent Events (SSE) for streaming progress updates
 - Automatic prompt cleaning (removes special characters: " * , : ; _ -)
 - Each video is approximately 8 seconds matching scene duration
+- **Retry Capabilities**:
+  - Individual video retry with "Try Again" button
+  - Bulk retry for all failed videos
+  - Concurrent retry protection using AbortController
+  - Automatic cleanup on component unmount/navigation
+  - UI-level duplicate request prevention
+  - Functional state updates to prevent race conditions
 
 **Database**: 
 - Neon PostgreSQL (via `@neondatabase/serverless`)
@@ -124,3 +131,6 @@ Preferred communication style: Simple, everyday language.
 6. **View Videos (Step 5)**: Final display with video players and download options
    - Watch generated videos inline
    - Download individual videos or all at once
+   - **Individual Retry**: "Try Again" button on each failed video
+   - **Bulk Retry**: "Regenerate Failed Videos" button when failures exist
+   - Production-ready retry handling with proper cleanup and concurrency control
