@@ -106,7 +106,6 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
         throw new Error(error.message || 'Failed to merge videos');
       }
 
-      setMergingStatus('Uploading to Cloudinary...');
       const result = await response.json();
       
       setMergingStatus('Complete!');

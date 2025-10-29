@@ -7,7 +7,6 @@ import { writeFile, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { uploadVideoToCloudinary } from './cloudinary';
 
 const execAsync = promisify(exec);
 
@@ -73,21 +72,12 @@ export async function mergeVideos(videos: VideoToMerge[]): Promise<string> {
       throw new Error(`FFmpeg failed: ${ffmpegError.message}`);
     }
 
-    // Step 4: Upload merged video to Cloudinary
-    console.log(`[Video Merger] Uploading merged video to Cloudinary...`);
-    const cloudinaryUrl = await uploadVideoToCloudinary(outputFile);
-    console.log(`[Video Merger] Merged video uploaded successfully: ${cloudinaryUrl}`);
-
-    // Step 5: Clean up temporary directory completely
-    console.log(`[Video Merger] Cleaning up temporary directory...`);
-    try {
-      await rm(tempDir, { recursive: true, force: true });
-      console.log(`[Video Merger] Cleanup successful`);
-    } catch (cleanupError) {
-      console.error(`[Video Merger] Cleanup error:`, cleanupError);
-    }
-
-    return cloudinaryUrl;
+    // Step 4: Return the local merged video file path (no Cloudinary upload)
+    console.log(`[Video Merger] Merge complete, returning local file path`);
+    
+    // Note: We're not cleaning up the temp directory so the file remains accessible
+    // The file path will be returned directly for local access
+    return outputFile;
   } catch (error) {
     console.error(`[Video Merger] Error during merge process:`, error);
     
