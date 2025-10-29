@@ -167,7 +167,7 @@ export default function Home() {
 
         const statusData = await statusResponse.json();
         
-        if (statusData.status === 'COMPLETED' || statusData.status === 'MEDIA_GENERATION_STATUS_COMPLETE') {
+        if (statusData.status === 'COMPLETED' || statusData.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || statusData.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
           if (abortController.signal.aborted) break;
           
           // Use functional update to ensure we work with latest state
