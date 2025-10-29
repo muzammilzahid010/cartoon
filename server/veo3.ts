@@ -272,7 +272,7 @@ export async function waitForVideoCompletion(
   maxWaitTime: number = 300000 // 5 minutes default
 ): Promise<{ videoUrl: string }> {
   const startTime = Date.now();
-  const pollInterval = 10000; // Check every 10 seconds
+  const pollInterval = 1000; // Check every 1 second
   const initialDelay = 1000; // Wait 1 second before first check
 
   // Wait initially to give the API time to process
