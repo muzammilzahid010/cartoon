@@ -134,12 +134,14 @@ export async function generateVideoForScene(
   }
 
   const data: VideoGenerationResponse = await response.json();
+  console.log(`[VEO3] Response data:`, JSON.stringify(data, null, 2));
 
   if (!data.operations || data.operations.length === 0) {
     throw new Error("No operation returned from VEO 3 API");
   }
 
   const operationName = data.operations[0].name;
+  console.log(`[VEO3] Operation name: ${operationName}`);
   
   return {
     operationName,
@@ -183,12 +185,15 @@ export async function checkVideoStatus(
   }
 
   const data: VideoStatusResponse = await response.json();
+  console.log(`[VEO3] Status check response:`, JSON.stringify(data, null, 2));
 
   if (!data.operations || data.operations.length === 0) {
+    console.log(`[VEO3] No operations in status response, returning PENDING`);
     return { status: "PENDING" };
   }
 
   const operation = data.operations[0];
+  console.log(`[VEO3] Operation status: ${operation.status}`);
   
   return {
     status: operation.status,
