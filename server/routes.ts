@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { storyInputSchema, loginSchema, insertUserSchema, type Scene } from "@shared/schema";
+import { storyInputSchema, loginSchema, insertUserSchema, updateUserPlanSchema, updateUserApiTokenSchema, type Scene } from "@shared/schema";
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
@@ -112,6 +112,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Get all users endpoint (admin only)
+  app.get("/api/users", requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Don't send password hashes to frontend
+      const sanitizedUsers = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        isAdmin: user.isAdmin,
+        planType: user.planType,
+        planStatus: user.planStatus,
+        planExpiry: user.planExpiry,
+        apiToken: user.apiToken,
+      }));
+      
+      res.json({ users: sanitizedUsers });
+    } catch (error) {
+      console.error("Error in GET /api/users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
   // Create user endpoint (admin only)
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
@@ -144,6 +167,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in /api/users:", error);
       res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
+  // Update user plan endpoint (admin only)
+  app.patch("/api/users/:id/plan", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validationResult = updateUserPlanSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const updatedUser = await storage.updateUserPlan(id, validationResult.data);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ 
+        success: true,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          isAdmin: updatedUser.isAdmin,
+          planType: updatedUser.planType,
+          planStatus: updatedUser.planStatus,
+          planExpiry: updatedUser.planExpiry,
+          apiToken: updatedUser.apiToken,
+        }
+      });
+    } catch (error) {
+      console.error("Error in PATCH /api/users/:id/plan:", error);
+      res.status(500).json({ error: "Failed to update user plan" });
+    }
+  });
+
+  // Update user API token endpoint (admin only)
+  app.patch("/api/users/:id/token", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validationResult = updateUserApiTokenSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const updatedUser = await storage.updateUserApiToken(id, validationResult.data);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ 
+        success: true,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          isAdmin: updatedUser.isAdmin,
+          planType: updatedUser.planType,
+          planStatus: updatedUser.planStatus,
+          planExpiry: updatedUser.planExpiry,
+          apiToken: updatedUser.apiToken,
+        }
+      });
+    } catch (error) {
+      console.error("Error in PATCH /api/users/:id/token:", error);
+      res.status(500).json({ error: "Failed to update user API token" });
     }
   });
 
