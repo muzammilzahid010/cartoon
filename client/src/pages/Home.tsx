@@ -38,6 +38,7 @@ interface GeneratedVideo {
 
 export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
+  const [storyInput, setStoryInput] = useState<StoryInput | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [videoProgress, setVideoProgress] = useState<VideoProgress[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
@@ -84,12 +85,14 @@ export default function Home() {
   };
 
   const handleFormSubmit = async (data: StoryInput) => {
+    setStoryInput(data); // Store the story input for later use
     setCurrentStep(2);
     generateScenesMutation.mutate(data);
   };
 
   const handleStartNew = () => {
     setCurrentStep(1);
+    setStoryInput(null);
     setScenes([]);
     setVideoProgress([]);
     setGeneratedVideos([]);
@@ -249,7 +252,10 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ scenes }),
+        body: JSON.stringify({ 
+          scenes,
+          characters: storyInput?.characters 
+        }),
       });
 
       const reader = response.body?.getReader();

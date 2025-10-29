@@ -132,6 +132,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title: z.string(),
           description: z.string()
         })),
+        characters: z.array(z.object({
+          name: z.string(),
+          description: z.string()
+        })).optional(),
         projectId: z.string().optional()
       });
 
@@ -144,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { scenes, projectId } = validationResult.data;
+      const { scenes, characters, projectId } = validationResult.data;
       const apiKey = process.env.VEO3_API_KEY;
 
       if (!apiKey) {
@@ -176,8 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'starting'
           })}\n\n`);
 
-          // Start video generation
-          const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, apiKey);
+          // Start video generation with character context
+          const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, apiKey, characters);
 
           // Send started update
           res.write(`data: ${JSON.stringify({ 
