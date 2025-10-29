@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import Hero from "@/components/Hero";
 import ProgressStepper from "@/components/ProgressStepper";
 import ScriptForm from "@/components/ScriptForm";
@@ -15,41 +18,40 @@ const STEPS = [
 export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const { toast } = useToast();
+
+  const generateScenesMutation = useMutation({
+    mutationFn: async (data: StoryInput) => {
+      const response = await apiRequest("POST", "/api/generate-scenes", data);
+      const result = await response.json();
+      return result as { scenes: Scene[] };
+    },
+    onSuccess: (data) => {
+      setScenes(data.scenes);
+      setCurrentStep(3);
+      toast({
+        title: "Success!",
+        description: `Generated ${data.scenes.length} scenes for your story.`,
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error generating scenes:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate scenes. Please try again.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+    },
+  });
 
   const handleGetStarted = () => {
     setCurrentStep(1);
   };
 
   const handleFormSubmit = async (data: StoryInput) => {
-    console.log("Form submitted:", data);
     setCurrentStep(2);
-
-    //todo: remove mock functionality - Replace with actual API call
-    setTimeout(() => {
-      const mockScenes: Scene[] = [
-        {
-          scene: 1,
-          title: "Opening Scene",
-          description: `visuals: A wide, vibrant shot of the city, filled with towering, colorful buildings and flying vehicles. Sunlight glints off reflective surfaces. Camera slowly pans across the bustling cityscape.
-dialogue_action: N/A (establishing shot)
-music: Upbeat, optimistic orchestral music with a driving rhythm (strings, brass, light percussion).
-sound_effects: Distant city hum, occasional whoosh of flying vehicles.
-transition: Fade in from black.`
-        },
-        {
-          scene: 2,
-          title: "Character Introduction",
-          description: `visuals: Close-up on ${data.characters[0]?.name || "the main character"} as they stride confidently into view. ${data.characters[0]?.description || "A determined expression on their face"}.
-dialogue_action: ${data.characters[0]?.name || "Character"} (with enthusiasm): "Let's make this happen!"
-music: Energetic theme music with building intensity.
-sound_effects: Footsteps, ambient sounds.
-transition: Quick cut.`
-        }
-      ];
-      
-      setScenes(mockScenes);
-      setCurrentStep(3);
-    }, 3000);
+    generateScenesMutation.mutate(data);
   };
 
   const handleStartNew = () => {
