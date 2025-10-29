@@ -38,16 +38,22 @@ export default function Admin() {
     user?: { id: string; username: string; isAdmin: boolean };
   }>({
     queryKey: ["/api/session"],
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (!isLoadingSession && (!session?.authenticated || !session?.user?.isAdmin)) {
-      toast({
-        variant: "destructive",
-        title: "Access denied",
-        description: "You must be an admin to access this page",
-      });
-      setLocation("/login");
+    // Only redirect if we have confirmed data showing the user is not authenticated or not admin
+    // Don't redirect while still loading
+    if (!isLoadingSession && session) {
+      if (!session.authenticated || !session.user?.isAdmin) {
+        toast({
+          variant: "destructive",
+          title: "Access denied",
+          description: "You must be an admin to access this page",
+        });
+        setLocation("/login");
+      }
     }
   }, [session, isLoadingSession, setLocation, toast]);
 
