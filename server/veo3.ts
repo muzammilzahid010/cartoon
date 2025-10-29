@@ -302,3 +302,58 @@ export async function waitForVideoCompletion(
 
   throw new Error("Video generation timed out");
 }
+
+// Poll for video completion with timeout and status updates callback
+export async function waitForVideoCompletionWithUpdates(
+  operationName: string,
+  sceneId: string,
+  apiKey: string,
+  onStatusUpdate?: (message: string) => void,
+  maxWaitTime: number = 300000 // 5 minutes default
+): Promise<{ videoUrl: string }> {
+  const startTime = Date.now();
+  const pollInterval = 1000; // Check every 1 second
+  const initialDelay = 1000; // Wait 1 second before first check
+
+  // Wait initially to give the API time to process
+  console.log(`[VEO3] Waiting ${initialDelay/1000}s before first status check for ${sceneId}`);
+  if (onStatusUpdate) {
+    onStatusUpdate('Waiting for VEO to start processing...');
+  }
+  await new Promise(resolve => setTimeout(resolve, initialDelay));
+
+  let pollCount = 0;
+  while (Date.now() - startTime < maxWaitTime) {
+    pollCount++;
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    
+    const status = await checkVideoStatus(operationName, sceneId, apiKey);
+
+    console.log(`[VEO3] Polling status for ${sceneId}: ${status.status}`);
+
+    // Send status update every 10 seconds to show activity
+    if (pollCount % 10 === 0 && onStatusUpdate) {
+      onStatusUpdate(`Still generating... (${elapsedSeconds}s elapsed)`);
+    }
+
+    if (status.status === "COMPLETED" || status.status === "MEDIA_GENERATION_STATUS_COMPLETE" || status.status === "MEDIA_GENERATION_STATUS_SUCCESSFUL") {
+      if (status.videoUrl) {
+        console.log(`[VEO3] Video completed successfully with URL: ${status.videoUrl}`);
+        if (onStatusUpdate) {
+          onStatusUpdate('Video generation complete!');
+        }
+        return { videoUrl: status.videoUrl };
+      }
+      throw new Error("Video completed but no URL provided");
+    }
+
+    if (status.status === "FAILED" || status.status === "MEDIA_GENERATION_STATUS_FAILED") {
+      throw new Error(`Video generation failed: ${status.error || "Unknown error"}`);
+    }
+
+    // Wait before next poll
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  throw new Error("Video generation timed out");
+}

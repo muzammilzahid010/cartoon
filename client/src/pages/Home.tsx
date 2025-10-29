@@ -26,6 +26,8 @@ interface VideoProgress {
   status: 'pending' | 'starting' | 'generating' | 'completed' | 'failed';
   videoUrl?: string;
   error?: string;
+  message?: string;
+  timestamp?: string;
 }
 
 interface GeneratedVideo {
@@ -286,22 +288,40 @@ export default function Home() {
               const data = JSON.parse(line.substring(6));
 
               if (data.type === 'progress') {
-                setCurrentVideoScene(data.current);
+                if (data.current) {
+                  setCurrentVideoScene(data.current);
+                }
                 setVideoProgress(prev => prev.map(p => 
                   p.sceneNumber === data.sceneNumber 
-                    ? { ...p, status: data.status }
+                    ? { 
+                        ...p, 
+                        status: data.status,
+                        message: data.message,
+                        timestamp: data.timestamp
+                      }
                     : p
                 ));
               } else if (data.type === 'video_complete') {
                 setVideoProgress(prev => prev.map(p => 
                   p.sceneNumber === data.sceneNumber 
-                    ? { ...p, status: 'completed', videoUrl: data.videoUrl }
+                    ? { 
+                        ...p, 
+                        status: 'completed', 
+                        videoUrl: data.videoUrl,
+                        message: 'Complete',
+                        timestamp: data.timestamp
+                      }
                     : p
                 ));
               } else if (data.type === 'error') {
                 setVideoProgress(prev => prev.map(p => 
                   p.sceneNumber === data.sceneNumber 
-                    ? { ...p, status: 'failed', error: data.error }
+                    ? { 
+                        ...p, 
+                        status: 'failed', 
+                        error: data.error,
+                        timestamp: data.timestamp
+                      }
                     : p
                 ));
               } else if (data.type === 'complete') {

@@ -8,6 +8,8 @@ interface VideoProgress {
   status: 'pending' | 'starting' | 'generating' | 'completed' | 'failed';
   videoUrl?: string;
   error?: string;
+  message?: string;
+  timestamp?: string;
 }
 
 interface VideoGenerationProgressProps {
@@ -69,17 +71,26 @@ export default function VideoGenerationProgress({
 
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold">
                       Scene {item.sceneNumber}: {item.sceneTitle}
                     </h3>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {item.status === 'starting' && 'Preparing video...'}
-                      {item.status === 'generating' && 'Generating video...'}
-                      {item.status === 'completed' && 'Video ready'}
-                      {item.status === 'pending' && 'Waiting...'}
-                      {item.status === 'failed' && `Failed: ${item.error}`}
+                    <p className="text-sm text-muted-foreground">
+                      {item.message || (
+                        <>
+                          {item.status === 'starting' && 'Preparing video...'}
+                          {item.status === 'generating' && 'Generating video...'}
+                          {item.status === 'completed' && 'Video ready'}
+                          {item.status === 'pending' && 'Waiting...'}
+                          {item.status === 'failed' && `Failed: ${item.error}`}
+                        </>
+                      )}
                     </p>
+                    {item.timestamp && (
+                      <p className="text-xs text-muted-foreground/60 mt-1">
+                        {new Date(item.timestamp).toLocaleTimeString()}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

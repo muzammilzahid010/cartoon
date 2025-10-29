@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { storyInputSchema, type Scene } from "@shared/schema";
 import { generateScenes } from "./gemini";
-import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion } from "./veo3";
+import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
 import { mergeVideos } from "./videoMerger";
 import { z } from "zod";
@@ -212,13 +212,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const scene = scenes[i];
         
         try {
-          // Send progress update
+          // Send starting update
           res.write(`data: ${JSON.stringify({ 
             type: 'progress', 
             current: i + 1, 
             total: scenes.length,
             sceneNumber: scene.scene,
-            status: 'starting_request'
+            status: 'starting',
+            message: 'Submitting request to VEO API...',
+            timestamp: new Date().toISOString()
           })}\n\n`);
 
           // Start video generation with character context
@@ -226,13 +228,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           operations.push({ operationName, sceneId, scene });
 
-          // Send started update
+          // Send request sent update
           res.write(`data: ${JSON.stringify({ 
             type: 'progress', 
             current: i + 1, 
             total: scenes.length,
             sceneNumber: scene.scene,
-            status: 'request_sent'
+            status: 'pending',
+            message: 'Request submitted, queued for processing...',
+            timestamp: new Date().toISOString()
           })}\n\n`);
 
           // Wait 5 seconds before sending the next request (unless it's the last scene)
@@ -254,7 +258,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'error', 
             sceneNumber: scene.scene,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
+            timestamp: new Date().toISOString()
           })}\n\n`);
         }
       }
@@ -265,11 +270,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'progress', 
             sceneNumber: op.scene.scene,
-            status: 'generating'
+            status: 'generating',
+            message: 'VEO is generating your video...',
+            timestamp: new Date().toISOString()
           })}\n\n`);
 
-          // Wait for completion
-          const result = await waitForVideoCompletion(op.operationName, op.sceneId, apiKey);
+          // Wait for completion with periodic status updates
+          const result = await waitForVideoCompletionWithUpdates(
+            op.operationName, 
+            op.sceneId, 
+            apiKey,
+            (status: string) => {
+              // Send periodic status updates during polling
+              res.write(`data: ${JSON.stringify({ 
+                type: 'progress', 
+                sceneNumber: op.scene.scene,
+                status: 'generating',
+                message: status,
+                timestamp: new Date().toISOString()
+              })}\n\n`);
+            }
+          );
+
+          // Send uploading status
+          res.write(`data: ${JSON.stringify({ 
+            type: 'progress', 
+            sceneNumber: op.scene.scene,
+            status: 'generating',
+            message: 'Uploading to Cloudinary...',
+            timestamp: new Date().toISOString()
+          })}\n\n`);
 
           // Upload video to Cloudinary for easy download
           console.log(`[Video Gen] Uploading scene ${op.scene.scene} to Cloudinary...`);
@@ -293,7 +323,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'video_complete', 
             sceneNumber: op.scene.scene,
-            videoUrl: finalVideoUrl
+            videoUrl: finalVideoUrl,
+            timestamp: new Date().toISOString()
           })}\n\n`);
 
         } catch (error) {
@@ -309,7 +340,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'error', 
             sceneNumber: op.scene.scene,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
+            timestamp: new Date().toISOString()
           })}\n\n`);
         }
       }
