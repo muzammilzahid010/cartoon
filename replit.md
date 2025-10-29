@@ -105,6 +105,7 @@ Preferred communication style: Simple, everyday language.
 - Replit-specific plugins for development banner, error overlay, and cartographer
 - Vite for fast development and optimized production builds
 - ESBuild for server-side bundling
+- FFmpeg for video merging and processing
 
 **Authentication**: Basic session management infrastructure present but not actively used
 
@@ -133,6 +134,8 @@ Preferred communication style: Simple, everyday language.
 6. **View Videos (Step 5)**: Final display with video players and download options
    - Watch generated videos inline
    - Download individual videos or all at once
+   - **Merge All Videos**: Combine all completed videos into a single video file
    - **Individual Retry**: "Try Again" button on each failed video
    - **Bulk Retry**: "Regenerate Failed Videos" button when failures exist
    - Production-ready retry handling with proper cleanup and concurrency control
+   - Video merging uses FFmpeg for seamless concatenation
