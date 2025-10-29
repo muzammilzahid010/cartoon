@@ -24,6 +24,7 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
   const [retryingScenes, setRetryingScenes] = useState<Set<number>>(new Set());
   const [retryingAll, setRetryingAll] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [mergingStatus, setMergingStatus] = useState<string>('');
   const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -79,6 +80,9 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
     }
 
     setMerging(true);
+    setMergedVideoUrl(null); // Clear previous merged video
+    setMergingStatus('Sending request...');
+    
     try {
       const videosToMerge = completedVideos
         .sort((a, b) => a.sceneNumber - b.sceneNumber)
@@ -87,6 +91,8 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
           videoUrl: v.videoUrl!
         }));
 
+      setMergingStatus('Executed - Processing videos...');
+      
       const response = await fetch('/api/merge-videos', {
         method: 'POST',
         headers: {
@@ -100,7 +106,10 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
         throw new Error(error.message || 'Failed to merge videos');
       }
 
+      setMergingStatus('Uploading to Cloudinary...');
       const result = await response.json();
+      
+      setMergingStatus('Complete!');
       setMergedVideoUrl(result.mergedVideoUrl);
       
       toast({
@@ -114,8 +123,10 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
         description: error instanceof Error ? error.message : "Failed to merge videos.",
         variant: "destructive",
       });
+      setMergingStatus('');
     } finally {
       setMerging(false);
+      setTimeout(() => setMergingStatus(''), 2000);
     }
   };
 
@@ -159,7 +170,7 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
                 variant="default"
               >
                 <Film className={`w-4 h-4 mr-2 ${merging ? 'animate-pulse' : ''}`} />
-                {merging ? 'Merging...' : 'Merge All Videos'}
+                {merging ? mergingStatus : 'Merge All Videos'}
               </Button>
               <Button
                 onClick={handleDownloadAll}
@@ -172,6 +183,20 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
           )}
         </div>
       </div>
+
+      {merging && !mergedVideoUrl && (
+        <Card className="mb-8 p-8" data-testid="merging-progress-card">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Film className="w-12 h-12 animate-pulse text-primary" />
+            <div className="text-center">
+              <h3 className="font-semibold text-lg mb-2">{mergingStatus}</h3>
+              <p className="text-sm text-muted-foreground">
+                Merging {completedVideos.length} videos into one...
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {mergedVideoUrl && (
         <Card className="mb-8 overflow-hidden" data-testid="merged-video-card">
