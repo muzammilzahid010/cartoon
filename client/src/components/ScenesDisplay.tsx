@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { Download, RotateCcw } from "lucide-react";
+import { Download, RotateCcw, RefreshCw } from "lucide-react";
 import SceneCard from "./SceneCard";
 import type { Scene } from "@shared/schema";
 
 interface ScenesDisplayProps {
   scenes: Scene[];
   onStartNew: () => void;
+  onRegenerate: () => void;
+  isRegenerating?: boolean;
 }
 
-export default function ScenesDisplay({ scenes, onStartNew }: ScenesDisplayProps) {
+export default function ScenesDisplay({ scenes, onStartNew, onRegenerate, isRegenerating = false }: ScenesDisplayProps) {
   const handleExport = () => {
     const dataStr = JSON.stringify(scenes, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -34,13 +36,24 @@ export default function ScenesDisplay({ scenes, onStartNew }: ScenesDisplayProps
           <Button
             variant="outline"
             onClick={onStartNew}
+            disabled={isRegenerating}
             data-testid="button-start-new"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
             Start New
           </Button>
           <Button
+            variant="outline"
+            onClick={onRegenerate}
+            disabled={isRegenerating}
+            data-testid="button-regenerate-scenes"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+            Regenerate Scenes
+          </Button>
+          <Button
             onClick={handleExport}
+            disabled={isRegenerating}
             data-testid="button-export"
           >
             <Download className="w-4 h-4 mr-2" />

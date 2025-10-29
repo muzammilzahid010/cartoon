@@ -101,6 +101,20 @@ export default function Home() {
     setCurrentVideoScene(0);
   };
 
+  const handleRegenerateScenes = () => {
+    if (!storyInput) {
+      toast({
+        title: "Error",
+        description: "No story input found. Please start a new story.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setCurrentStep(2);
+    generateScenesMutation.mutate(storyInput);
+  };
+
   const handleRetryVideo = async (sceneNumber: number) => {
     // Find the scene to retry
     const scene = scenes.find(s => s.scene === sceneNumber);
@@ -363,7 +377,12 @@ export default function Home() {
           
           {currentStep === 3 && (
             <div>
-              <ScenesDisplay scenes={scenes} onStartNew={handleStartNew} />
+              <ScenesDisplay 
+                scenes={scenes} 
+                onStartNew={handleStartNew}
+                onRegenerate={handleRegenerateScenes}
+                isRegenerating={generateScenesMutation.isPending}
+              />
               <div className="max-w-6xl mx-auto px-4 pb-8">
                 <div className="flex justify-center">
                   <Button

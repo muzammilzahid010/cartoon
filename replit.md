@@ -123,7 +123,9 @@ Preferred communication style: Simple, everyday language.
    - Validates scene count and quality
 4. **Review Scenes (Step 3)**: Grid display of generated scenes with structured information cards
    - Shows all scene details (visuals, dialogue, music, SFX, transitions)
-   - Option to start new story or proceed to video generation
+   - **Regenerate Scenes**: Users can regenerate all scenes with the same story input if not satisfied with results
+   - Option to start new story, regenerate scenes, or proceed to video generation
+   - Export scenes as JSON for offline use
 5. **Generate Videos (Step 4)**: Real-time progress tracking for video generation
    - Sequential processing of each scene
    - Live status updates via Server-Sent Events
