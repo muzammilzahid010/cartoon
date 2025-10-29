@@ -15,6 +15,16 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    
+    // Create default admin user (username: admin, password: admin123)
+    const adminId = randomUUID();
+    const defaultAdmin: User = {
+      id: adminId,
+      username: "admin",
+      password: "admin123",
+      isAdmin: true,
+    };
+    this.users.set(adminId, defaultAdmin);
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -29,7 +39,11 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      isAdmin: insertUser.isAdmin ?? false 
+    };
     this.users.set(id, user);
     return user;
   }
