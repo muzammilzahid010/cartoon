@@ -84,6 +84,14 @@ export async function generateVideoForScene(
   const sceneId = `scene-${scene.scene}-${Date.now()}`;
   const prompt = getScenePrompt(scene);
 
+  // Trim the API key to remove any whitespace
+  const trimmedApiKey = apiKey.trim();
+
+  console.log(`[VEO3] Generating video for scene ${scene.scene}`);
+  console.log(`[VEO3] Project ID: ${projectId}`);
+  console.log(`[VEO3] API Key length: ${trimmedApiKey.length}, starts with: ${trimmedApiKey.substring(0, 10)}...`);
+  console.log(`[VEO3] Prompt: ${prompt}`);
+
   const requestBody: VideoGenerationRequest = {
     clientContext: {
       projectId: projectId,
@@ -103,14 +111,19 @@ export async function generateVideoForScene(
     }]
   };
 
+  console.log(`[VEO3] Request URL: ${VEO3_BASE_URL}:batchAsyncGenerateVideoText`);
+  console.log(`[VEO3] Request body:`, JSON.stringify(requestBody, null, 2));
+
   const response = await fetch(`${VEO3_BASE_URL}:batchAsyncGenerateVideoText`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${trimmedApiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(requestBody)
   });
+
+  console.log(`[VEO3] Response status: ${response.status} ${response.statusText}`);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -136,6 +149,9 @@ export async function checkVideoStatus(
   sceneId: string,
   apiKey: string
 ): Promise<{ status: string; videoUrl?: string; error?: string }> {
+  // Trim the API key to remove any whitespace
+  const trimmedApiKey = apiKey.trim();
+
   const requestBody: VideoStatusRequest = {
     operations: [{
       operation: {
@@ -149,7 +165,7 @@ export async function checkVideoStatus(
   const response = await fetch(`${VEO3_BASE_URL}:batchCheckAsyncVideoGenerationStatus`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${trimmedApiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(requestBody)
