@@ -23,14 +23,13 @@ interface VideoGenerationRequest {
 
 interface VideoGenerationResponse {
   operations?: Array<{
-    name: string;
-    metadata?: {
-      sceneId: string;
+    operation: {
+      name: string;
     };
+    sceneId: string;
+    status: string;
   }>;
-  clientContext?: {
-    projectId: string;
-  };
+  remainingCredits?: number;
 }
 
 interface VideoStatusRequest {
@@ -45,10 +44,16 @@ interface VideoStatusRequest {
 
 interface VideoStatusResponse {
   operations?: Array<{
+    operation: {
+      error?: {
+        message: string;
+      };
+      videoUrl?: string;
+    };
+    sceneId: string;
     status: string;
-    videoUrl?: string;
-    error?: string;
   }>;
+  remainingCredits?: number;
 }
 
 export interface GeneratedVideo {
@@ -140,8 +145,13 @@ export async function generateVideoForScene(
     throw new Error("No operation returned from VEO 3 API");
   }
 
-  const operationName = data.operations[0].name;
+  // Flow API nests the operation name inside operation.name
+  const operationName = data.operations[0].operation?.name;
   console.log(`[VEO3] Operation name: ${operationName}`);
+  
+  if (!operationName) {
+    throw new Error("No operation name in response");
+  }
   
   return {
     operationName,
@@ -192,13 +202,13 @@ export async function checkVideoStatus(
     return { status: "PENDING" };
   }
 
-  const operation = data.operations[0];
-  console.log(`[VEO3] Operation status: ${operation.status}`);
+  const operationData = data.operations[0];
+  console.log(`[VEO3] Operation status: ${operationData.status}`);
   
   return {
-    status: operation.status,
-    videoUrl: operation.videoUrl,
-    error: operation.error
+    status: operationData.status,
+    videoUrl: operationData.operation.videoUrl,
+    error: operationData.operation.error?.message
   };
 }
 
