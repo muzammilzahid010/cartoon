@@ -1,0 +1,167 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a scene generator for video creation using VEO 3.\n\nTask:\nCreate a detailed SCENE description for each line of the story below.\n\nGuidelines:\n- Style: 3D Animation, Disney Pixar\n- Each SCENE should be a detailed paragraph describing visuals, camera, character actions, dialogue, music, and sound effects.\n-\n- If the story is long, increase the number of scenes (up to 70 if needed).\n\n\nStory Script:\n\n{{ $('Edit Fields2').item.json.script }}\n.\nmake as muchh scene aas  you can from the abobe script",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a Cartoon Scene Director AI optimized for generating short, cinematic 8-second animated scenes for Veo 3 or similar video-generation tools.\n\nYour job is to read a long cartoon script and output a list of scenes. Each scene should be brief, action-focused.\n\n---\n\n### OUTPUT REQUIREMENTS:\n\n\n2. **Each scene should last about 8 seconds** and include:\n\n  and description contain following things:\n \n   - `visuals`: camera and setting description\n   - `dialogue_action`: 1–2 lines of short dialogue or main action\n   - `music`: a brief background music suggestion (tone, mood, instruments)\n   - `sound_effects`: list of 1–3 matching SFX\n   - `transition`: how the clip moves to the next (fade, cut, zoom, etc.)\n\n3. **Scene style:** colorful, cinematic, and cartoonish — inspired by Pixar or DreamWorks 3D animation.\n\n4. **Scene splitting:** If the script is long, make more scenes instead of longer ones. Each scene should describe a single emotional beat or visual moment.\n\n\n\n---\n\n\n\n the below is the story script:\n\n{{ $('Edit Fields2').item.json.script }}\n\nmake as mush scene from the above script as you can."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "b022bce8-e62e-48b4-a9c9-c4a9551a4575",
+      "name": "AI Agent",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {
+    "AI Agent": [
+      {
+        "output": [
+          {
+            "description": "visuals: A wide, vibrant shot of Fitropolis city, filled with towering, colorful buildings and flying vehicles. Sunlight glints off reflective surfaces. Camera slowly pans across the bustling cityscape, focusing on the energy.\ndialogue_action: N/A (establishing shot)\nmusic: Upbeat, optimistic orchestral music with a driving rhythm (strings, brass, light percussion).\nsound_effects: Distant city hum, occasional whoosh of flying vehicles.\ntransition: Fade in from black.",
+            "scene": 1,
+            "title": "Fitropolis Cityscape"
+          },
+          {
+            "description": "visuals: Camera smoothly zooms in from the cityscape to focus on \"The Iron Den,\" a large, modern gym building with a dynamic, inviting design. Large glass windows show silhouettes of active, happy people inside. Colorful signage glows.\ndialogue_action: N/A (establishing shot)\nmusic: Music softens slightly, becoming more warm and inviting, hinting at a sense of community.\nsound_effects: Muffled gym sounds (clanking weights, energetic chatter) from within.\ntransition: Zoom to focal point.",
+            "scene": 2,
+            "title": "The Iron Den Exterior"
+          },
+          {
+            "description": "visuals: Inside The Iron Den. A diverse group of cartoon animal characters are exercising, laughing, and high-fiving. Focus on the positive interactions – a bear spotting a squirrel, an elephant helping a fox with a weight. Camera moves to show the \"fitness as family\" atmosphere.\ndialogue_action: N/A\nmusic: Lively, friendly music with a driving beat, featuring acoustic guitars and light drums, conveying a sense of camaraderie.\nsound_effects: Laughter, high-fives, light clanging of weights, energetic chatter.\ntransition: Cut to.",
+            "scene": 3,
+            "title": "The Iron Den Interior - Community"
+          },
+          {
+            "description": "visuals: The gym is still a bit dim. The main entrance doors burst open with a dramatic flair, revealing MAX THE MOTIVATOR, a majestic golden-maned lion, silhouetted by the morning light. He has an undeniable aura of energy. He takes a deep breath, flexing slightly.\ndialogue_action: Max strides in, a determined grin on his face.\nmusic: A sudden, powerful fanfare with brass and timpani, followed by a playful, energetic theme.\nsound_effects: Door bursting open with a WHOOSH, Max's confident footsteps, a subtle, low growl of anticipation.\ntransition: Quick cut.",
+            "scene": 4,
+            "title": "Max Arrives"
+          },
+          {
+            "description": "visuals: Close-up on Max's face as he takes a shiny silver whistle from around his neck. He blows it with gusto, then throws his head back, chest puffed out. The camera then widens to show gym members, some still sleepy, jolting awake.\ndialogue_action: Max (roaring with enthusiasm): \"No excuses, just reps!\"\nmusic: The playful, energetic theme swells, with a strong, rhythmic beat accompanying Max's whistle and shout.\nsound_effects: Sharp, piercing WHISTLE blast, Max's booming voice, a few startled gasps from gym members.\ntransition: Quick pan to reaction.",
+            "scene": 5,
+            "title": "Max's Morning Motto"
+          },
+          {
+            "description": "visuals: A montage of quick cuts: A tired-looking gorilla forces a smile while lifting weights, a small rabbit pumps its fist despite looking exhausted, a rhino chuckles. Each character shows how Max's energy lifts their spirits, even when they're tired. Max gives an encouraging wink.\ndialogue_action: N/A (visual storytelling of Max's influence)\nmusic: Uplifting, motivational music with a persistent beat and bright melodies, inspiring determination.\nsound_effects: Grunts of effort, light laughter, rhythmic gym equipment sounds.\ntransition: Fast cuts between characters.",
+            "scene": 6,
+            "title": "Max's Effect on Members"
+          },
+          {
+            "description": "visuals: Tina the Trainer, a calm and elegant panda, is demonstrating a precise stretching exercise to a group of eager-to-learn gym members. Her movements are fluid and controlled. Camera focuses on her gentle but firm demeanor as she corrects a deer's posture with a soft touch.\ndialogue_action: Tina (softly, encouragingly): \"Remember your form, focus on the breath.\"\nmusic: Serene, guiding music with soft piano and gentle strings, creating an atmosphere of calm instruction.\nsound_effects: Gentle rustle of Tina's movements, soft murmurs of concentration from members.\ntransition: Smooth dissolve.",
+            "scene": 7,
+            "title": "Tina the Trainer's Guidance"
+          },
+          {
+            "description": "visuals: Tina stands confidently, hands clasped, addressing the group. Her expression is thoughtful and wise. The camera holds on her, emphasizing her quiet strength. Members listen attentively, absorbing her words.\ndialogue_action: Tina (with quiet conviction): \"Strength without balance is just noise.\"\nmusic: Music becomes slightly more profound and contemplative, with a subtle swell of strings under Tina's words.\nsound_effects: Tina's clear, steady voice, a slight echo in the spacious gym.\ntransition: Slow push in on Tina.",
+            "scene": 8,
+            "title": "Tina's Wisdom"
+          },
+          {
+            "description": "visuals: A time-lapse effect or a quick montage showing the Iron Crew members performing exercises with improved form and focus. A previously struggling character now executes a perfect plank. Max watches, nodding in approval, while Tina smiles proudly.\ndialogue_action: N/A (visual demonstration of progress)\nmusic: A triumphant and flowing orchestral piece, building in intensity to signify growth and achievement.\nsound_effects: Smoother, more confident sounds of exercise, a satisfied sigh.\ntransition: Montage with quick, energetic wipes.",
+            "scene": 9,
+            "title": "Improved Iron Crew"
+          },
+          {
+            "description": "visuals: Rocky the Rookie, a small, endearing badger, is attempting to jump rope. He's clumsy, his feet getting tangled, and he hilariously trips over the rope, landing in a heap of flailing limbs and a puff of dust. Camera holds on his awkwardness.\ndialogue_action: N/A (physical comedy)\nmusic: Light, whimsical music with pizzicato strings and a playful flute, emphasizing his rookie clumsiness.\nsound_effects: Whirring of the jump rope, a comical TRIPPING sound, a soft THUD as he falls, a small, embarrassed squeak from Rocky.\ntransition: Quick cut to.",
+            "scene": 10,
+            "title": "Rocky's Clumsy Intro"
+          },
+          {
+            "description": "visuals: Rocky attempts to lift a pair of small dumbbells. He struggles, his tail wagging nervously, and eventually, the dumbbells slip from his grasp with a cartoonish CLANG, narrowly missing his tail as he yelps and jumps back. A nearby character stifles a giggle.\ndialogue_action: N/A (more physical comedy)\nmusic: The whimsical music continues, building slight tension during his struggle and then a comedic flourish when he drops them.\nsound_effects: Straining grunts from Rocky, the heavy CLANG of dumbbells, Rocky's yelp.\ntransition: Quick zoom on the dropped weights.",
+            "scene": 11,
+            "title": "Rocky vs. Dumbbells"
+          },
+          {
+            "description": "visuals: Rocky, despite his fall and embarrassment, slowly gets up, dusts off his fur, and gives a determined, slightly wobbly smile. His eyes sparkle with an unyielding spirit. Other gym members exchange knowing, admiring glances. Max gives a subtle, encouraging nod.\ndialogue_action: N/A (showing resilience)\nmusic: Music shifts to a heartwarming, inspirational melody with a gentle build, highlighting his courage and spirit.\nsound_effects: Soft rustle of him dusting himself off, a small, determined grunt.\ntransition: Slow pan across his face.",
+            "scene": 12,
+            "title": "Rocky's Unforgettable Courage"
+          },
+          {
+            "description": "visuals: A quick, uplifting montage: Rocky practicing jump rope, slowly getting better; Rocky successfully lifting the same dumbbells with proper form; Rocky confidently running on a treadmill. The camera focuses on his growing confidence and improved technique. Tina watches with a warm smile.\ndialogue_action: N/A (visual progress)\nmusic: Upbeat, motivational montage music with an increasingly confident rhythm, symbolizing growth and achievement.\nsound_effects: Rhythmic swish of jump rope, confident clank of weights, steady footsteps on treadmill.\ntransition: Energetic wipe transitions between scenes.",
+            "scene": 13,
+            "title": "Rocky's Persistence Pays Off"
+          },
+          {
+            "description": "visuals: The gym doors swing open dramatically again, but this time, a cold, calculating aura fills the space. BLAZE THE CHALLENGER, a tall, muscular red fox with a sharp, intimidating smirk, steps in. He casts a long shadow. Camera emphasizes his imposing physique.\ndialogue_action: N/A (dramatic entrance)\nmusic: Dark, intense orchestral music with deep brass and a building sense of tension, featuring a strong, driving beat.\nsound_effects: Dramatic door creak, a low, menacing WHOOSH as he enters, a subtle, cold wind sound effect.\ntransition: Slow zoom on Blaze's face.",
+            "scene": 14,
+            "title": "Blaze the Challenger Arrives"
+          },
+          {
+            "description": "visuals: Blaze slowly surveys the bustling gym, his eyes narrowed, a smirk playing on his lips. He stops, hands on his hips, radiating an air of superiority. The background gym noise briefly fades as he speaks, drawing everyone's attention.\ndialogue_action: Blaze (with a challenging sneer): \"I'm here to find out who the real champion is.\"\nmusic: The intense music pauses briefly during his survey, then a single, sharp string chord plays as he speaks, emphasizing his challenge.\nsound_effects: A brief, unsettling SILENCE, followed by Blaze's clear, confident voice, a slight echo.\ntransition: Quick cut to Max.",
+            "scene": 15,
+            "title": "Blaze's Challenge"
+          },
+          {
+            "description": "visuals: Max steps forward, his usual grin unwavering, though his eyes hold a deeper resolve. He meets Blaze's gaze head-on, embodying the warmth of the Iron Den. The camera shows a subtle ripple of admiration from the other gym members.\ndialogue_action: Max (with a confident, heartfelt smile): \"The real champion lifts more than weights — he lifts people up.\"\nmusic: The tension in the music dissipates, replaced by a warm, uplifting melody that swells gently, emphasizing Max's message of unity.\nsound_effects: Max's clear, strong voice, a soft murmur of agreement from the crowd.\ntransition: Slow zoom out to show both Max and Blaze.",
+            "scene": 16,
+            "title": "Max's Counter-Challenge"
+          },
+          {
+            "description": "visuals: A dynamic montage of intense workouts. Blaze is shown performing incredibly difficult exercises solo, pushing himself to the limit, gritting his teeth. Interspersed are shots of the Iron Crew members working out together, spotting each other, and offering encouragement, clearly showing their unity. Blaze occasionally glances at them, a flicker of frustration in his eyes.\ndialogue_action: N/A (visual competition and contrast)\nmusic: High-energy, driving rock music with heavy guitar riffs and pounding drums, underscoring the intense competition and effort.\nsound_effects: Heavy breathing, grunts of effort, clanging weights, Max's encouraging shouts in the background.\ntransition: Fast-paced cuts and energetic wipes.",
+            "scene": 17,
+            "title": "Intense Workouts - Blaze vs. Unity"
+          },
+          {
+            "description": "visuals: Blaze is attempting a monumental lift, veins bulging, sweat pouring down his face. He strains, muscles trembling, but his form starts to break. The weight begins to descend, too heavy to control. His face contorts in a mixture of effort and defeat. He is clearly at his breaking point, alone.\ndialogue_action: N/A (physical struggle)\nmusic: The intense music suddenly becomes dissonant and strained, reflecting Blaze's struggle, then slowly grinds to a halt as he falters.\nsound_effects: Loud, strained grunts, heavy breathing, the metallic SCREECH of failing equipment, a building sense of tension.\ntransition: Slow-motion shot of the weight descending.",
+            "scene": 18,
+            "title": "Blaze Hits His Limit"
+          },
+          {
+            "description": "visuals: Just as the weight is about to crush Blaze, Max suddenly appears, stepping in with incredible speed. With a powerful, synchronized move, Max helps Blaze stabilize and re-rack the weight, saving him from injury. Max offers a steady, compassionate look.\ndialogue_action: Max (calmly): \"Got your back.\"\nmusic: A sudden, heroic orchestral swell as Max intervenes, then a gentle, empathetic string melody as he helps Blaze.\nsound_effects: A dramatic WHOOSH as Max moves, the solid THUD of the re-racked weight, Max's reassuring voice.\ntransition: Quick, dramatic cut.",
+            "scene": 19,
+            "title": "Max's Helping Hand"
+          },
+          {
+            "description": "visuals: Blaze stares at Max, his initial shock turning into confusion, then a profound realization. His arrogant smirk falters, replaced by a look of vulnerability and dawning understanding. He looks around at the supportive faces of the Iron Crew, who nod approvingly. Close up on Blaze's eyes as his perspective shifts.\ndialogue_action: N/A (internal emotional shift)\nmusic: Soft, reflective piano music plays, gradually building with warm strings, signifying an emotional breakthrough and understanding.\nsound_effects: A quiet sigh from Blaze, distant, supportive murmurs from the crew.\ntransition: Slow dissolve to his internal thoughts.",
+            "scene": 20,
+            "title": "Blaze's Realization"
+          },
+          {
+            "description": "visuals: Blaze, now with a genuine smile, is seen training alongside Max, Tina, and Rocky. He's no longer working solo but laughing and interacting, spotting Max on a bench press, high-fiving Rocky after a successful lift. The camaraderie is evident and natural.\ndialogue_action: N/A (showing integration and teamwork)\nmusic: Upbeat, joyful, and harmonious music with a blend of acoustic and light electronic elements, reflecting newfound friendship and unity.\nsound_effects: Shared laughter, friendly grunts of effort, the rhythmic clanging of weights in sync.\ntransition: Energetic montage of teamwork.",
+            "scene": 21,
+            "title": "Blaze Joins the Team"
+          },
+          {
+            "description": "visuals: A wide shot of the vibrant Iron Den, now even more bustling and positive. New members, inspired by the unified Iron Crew, are seen joining in. The gym glows with warmth and energy, a beacon in the city. Camera pans up to show \"The Iron Den\" sign against a clear, bright sky.\ndialogue_action: N/A (visual metaphor)\nmusic: Grand, inspirational orchestral music with soaring melodies and a powerful, hopeful crescendo.\nsound_effects: General joyful hubbub of a thriving gym, optimistic city sounds.\ntransition: Slow zoom out to reveal the city.",
+            "scene": 22,
+            "title": "The Iron Den - A Symbol of Hope"
+          },
+          {
+            "description": "visuals: Evening. The gym is quieting down, and the setting sun paints the sky in vivid oranges, purples, and deep reds, casting long, warm shadows through the gym windows. Max gathers Tina, Rocky, and Blaze, who are all sweaty but content, around him. They stand shoulder to shoulder, a strong unit.\ndialogue_action: N/A (pre-speech moment)\nmusic: Warm, nostalgic acoustic guitar melody with gentle strings, creating a reflective and peaceful evening atmosphere.\nsound_effects: Fading gym sounds, the gentle chirping of evening birds, a soft breeze.\ntransition: Slow fade to golden hour.",
+            "scene": 23,
+            "title": "Sunset Gathering"
+          },
+          {
+            "description": "visuals: Close-up on Max as he looks at his team with profound pride and a beaming smile. His voice is warm and sincere. The camera then widens slightly to include Tina, Rocky, and Blaze, all looking at Max with respect and affection.\ndialogue_action: Max (with heartfelt conviction): \"In this gym, we don't just lift weights — we lift each other.\"\nmusic: The nostalgic music swells gently, becoming more heartfelt and emotional, emphasizing the significance of Max's words.\nsound_effects: Max's clear, warm voice, a collective, contented sigh from the team.\ntransition: Slow push in on the team.",
+            "scene": 24,
+            "title": "Max's Unifying Motto"
+          },
+          {
+            "description": "visuals: A final, epic shot of The Iron Crew (Max, Tina, Rocky, and Blaze) standing together triumphantly, arms linked or hands on shoulders, silhouetted against a magnificent sunset. They look strong, happy, and united. The city of Fitropolis sparkles in the background, now seemingly connected to their spirit. Text appears: \"The Iron Crew: Strong in Body, Strong in Spirit.\"\ndialogue_action: N/A (concluding visual statement)\nmusic: A grand, uplifting, and triumphant orchestral finale, full of emotion and power, ending with a sustained, resonant chord.\nsound_effects: A final, powerful WHOOSH sound, distant cheers of an adoring crowd, the sound of the inspiring music swelling to its peak.\ntransition: Fade to black with title card.",
+            "scene": 25,
+            "title": "The Iron Crew Legends"
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4d5a61fd365780b775ad220ea1c3641b1b9203a4de2672d28f24110a9b530fa7"
+  }
+}
