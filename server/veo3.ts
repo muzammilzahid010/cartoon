@@ -220,13 +220,28 @@ export async function checkVideoStatus(
   console.log(`[VEO3] Operation status: ${operationData.status}`);
   console.log(`[VEO3] Operation data:`, JSON.stringify(operationData.operation, null, 2));
   
-  // Check for both videoUrl and fileUrl
-  const videoUrl = (operationData.operation as any).videoUrl || 
-                   (operationData.operation as any).fileUrl ||
-                   (operationData.operation as any).downloadUrl;
+  // Extract video URL from the nested metadata structure
+  let videoUrl: string | undefined;
+  
+  // Try to get from metadata.video.fifeUrl (the actual location)
+  if (operationData.operation?.metadata?.video?.fifeUrl) {
+    videoUrl = operationData.operation.metadata.video.fifeUrl;
+  }
+  // Fallback to other possible locations
+  else if ((operationData.operation as any).videoUrl) {
+    videoUrl = (operationData.operation as any).videoUrl;
+  }
+  else if ((operationData.operation as any).fileUrl) {
+    videoUrl = (operationData.operation as any).fileUrl;
+  }
+  else if ((operationData.operation as any).downloadUrl) {
+    videoUrl = (operationData.operation as any).downloadUrl;
+  }
   
   if (videoUrl) {
     console.log(`[VEO3] Found video URL: ${videoUrl}`);
+  } else {
+    console.log(`[VEO3] No video URL found in response`);
   }
   
   return {
@@ -256,7 +271,7 @@ export async function waitForVideoCompletion(
 
     console.log(`[VEO3] Polling status for ${sceneId}: ${status.status}`);
 
-    if (status.status === "COMPLETED" || status.status === "MEDIA_GENERATION_STATUS_COMPLETE") {
+    if (status.status === "COMPLETED" || status.status === "MEDIA_GENERATION_STATUS_COMPLETE" || status.status === "MEDIA_GENERATION_STATUS_SUCCESSFUL") {
       if (status.videoUrl) {
         console.log(`[VEO3] Video completed successfully with URL: ${status.videoUrl}`);
         return { videoUrl: status.videoUrl };
