@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,16 @@ export default function Home() {
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [currentVideoScene, setCurrentVideoScene] = useState(0);
   const { toast } = useToast();
+  const abortControllersRef = useRef<Map<number, AbortController>>(new Map());
+
+  // Cleanup abort controllers on unmount or step change
+  useEffect(() => {
+    return () => {
+      // Abort all ongoing retries when component unmounts or step changes
+      abortControllersRef.current.forEach(controller => controller.abort());
+      abortControllersRef.current.clear();
+    };
+  }, [currentStep]);
 
   const generateScenesMutation = useMutation({
     mutationFn: async (data: StoryInput) => {
@@ -84,6 +94,141 @@ export default function Home() {
     setVideoProgress([]);
     setGeneratedVideos([]);
     setCurrentVideoScene(0);
+  };
+
+  const handleRetryVideo = async (sceneNumber: number) => {
+    // Find the scene to retry
+    const scene = scenes.find(s => s.scene === sceneNumber);
+    if (!scene) {
+      toast({
+        title: "Error",
+        description: "Scene not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Abort any existing retry for this scene to prevent concurrent retries
+    const existingController = abortControllersRef.current.get(sceneNumber);
+    if (existingController) {
+      existingController.abort();
+      abortControllersRef.current.delete(sceneNumber);
+    }
+
+    // Create abort controller for this retry
+    const abortController = new AbortController();
+    abortControllersRef.current.set(sceneNumber, abortController);
+
+    // Update the video status to show it's being regenerated (functional update)
+    setGeneratedVideos(prev => prev.map(v => 
+      v.sceneNumber === sceneNumber 
+        ? { ...v, status: 'generating', error: undefined }
+        : v
+    ));
+
+    try {
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scene }),
+        signal: abortController.signal,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to start video generation');
+      }
+
+      // Poll for completion
+      const { operationName, sceneId } = result;
+      const maxAttempts = 60; // 5 minutes max
+      
+      for (let i = 0; i < maxAttempts; i++) {
+        if (abortController.signal.aborted) break;
+        
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        
+        if (abortController.signal.aborted) break;
+        
+        const statusResponse = await fetch('/api/check-video-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ operationName, sceneId }),
+          signal: abortController.signal,
+        });
+
+        const statusData = await statusResponse.json();
+        
+        if (statusData.status === 'COMPLETED' || statusData.status === 'MEDIA_GENERATION_STATUS_COMPLETE') {
+          if (abortController.signal.aborted) break;
+          
+          // Use functional update to ensure we work with latest state
+          setGeneratedVideos(prev => prev.map(v => 
+            v.sceneNumber === sceneNumber 
+              ? { sceneNumber: v.sceneNumber, sceneTitle: v.sceneTitle, status: 'completed', videoUrl: statusData.videoUrl }
+              : v
+          ));
+          toast({
+            title: "Video Regenerated!",
+            description: `Scene ${sceneNumber} has been successfully regenerated.`,
+          });
+          return;
+        } else if (statusData.status === 'FAILED' || statusData.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+          throw new Error(statusData.error || 'Video generation failed');
+        }
+      }
+
+      if (!abortController.signal.aborted) {
+        throw new Error('Video generation timed out');
+      }
+    } catch (error) {
+      // Don't show errors if aborted
+      if (abortController.signal.aborted) return;
+      
+      console.error("Error regenerating video:", error);
+      // Use functional update to ensure we work with latest state
+      setGeneratedVideos(prev => prev.map(v => 
+        v.sceneNumber === sceneNumber 
+          ? { ...v, status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' }
+          : v
+      ));
+      toast({
+        title: "Regeneration Failed",
+        description: error instanceof Error ? error.message : "Failed to regenerate video.",
+        variant: "destructive",
+      });
+    } finally {
+      // Clean up abort controller
+      abortControllersRef.current.delete(sceneNumber);
+    }
+  };
+
+  const handleRetryAllFailed = async () => {
+    // Get current failed videos using functional state access
+    let failedSceneNumbers: number[] = [];
+    setGeneratedVideos(prev => {
+      failedSceneNumbers = prev.filter(v => v.status === 'failed').map(v => v.sceneNumber);
+      return prev;
+    });
+    
+    // Process each failed video sequentially
+    for (const sceneNumber of failedSceneNumbers) {
+      // Check if still failed (in case state changed)
+      let shouldRetry = false;
+      setGeneratedVideos(prev => {
+        shouldRetry = prev.some(v => v.sceneNumber === sceneNumber && v.status === 'failed');
+        return prev;
+      });
+      
+      if (shouldRetry) {
+        await handleRetryVideo(sceneNumber);
+      }
+    }
   };
 
   const handleGenerateVideos = async () => {
@@ -220,6 +365,8 @@ export default function Home() {
             <VideosDisplay 
               videos={generatedVideos}
               onStartNew={handleStartNew}
+              onRetryVideo={handleRetryVideo}
+              onRetryAllFailed={handleRetryAllFailed}
             />
           )}
         </>

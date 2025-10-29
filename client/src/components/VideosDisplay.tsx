@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RotateCcw, Download, Play } from "lucide-react";
+import { RotateCcw, Download, Play, RefreshCw } from "lucide-react";
+import { useState } from "react";
 
 interface GeneratedVideo {
   sceneNumber: number;
@@ -14,9 +15,14 @@ interface GeneratedVideo {
 interface VideosDisplayProps {
   videos: GeneratedVideo[];
   onStartNew: () => void;
+  onRetryVideo: (sceneNumber: number) => Promise<void>;
+  onRetryAllFailed: () => Promise<void>;
 }
 
-export default function VideosDisplay({ videos, onStartNew }: VideosDisplayProps) {
+export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetryAllFailed }: VideosDisplayProps) {
+  const [retryingScenes, setRetryingScenes] = useState<Set<number>>(new Set());
+  const [retryingAll, setRetryingAll] = useState(false);
+
   const completedVideos = videos.filter(v => v.status === 'completed');
   const failedVideos = videos.filter(v => v.status === 'failed');
 
@@ -31,6 +37,33 @@ export default function VideosDisplay({ videos, onStartNew }: VideosDisplayProps
     });
   };
 
+  const handleRetryVideo = async (sceneNumber: number) => {
+    // Prevent duplicate retries
+    if (retryingScenes.has(sceneNumber)) {
+      return;
+    }
+    
+    setRetryingScenes(prev => new Set(prev).add(sceneNumber));
+    try {
+      await onRetryVideo(sceneNumber);
+    } finally {
+      setRetryingScenes(prev => {
+        const next = new Set(prev);
+        next.delete(sceneNumber);
+        return next;
+      });
+    }
+  };
+
+  const handleRetryAllFailed = async () => {
+    setRetryingAll(true);
+    try {
+      await onRetryAllFailed();
+    } finally {
+      setRetryingAll(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -42,7 +75,18 @@ export default function VideosDisplay({ videos, onStartNew }: VideosDisplayProps
           </p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          {failedVideos.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleRetryAllFailed}
+              disabled={retryingAll}
+              data-testid="button-retry-all-failed"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${retryingAll ? 'animate-spin' : ''}`} />
+              Regenerate Failed Videos ({failedVideos.length})
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={onStartNew}
@@ -114,13 +158,22 @@ export default function VideosDisplay({ videos, onStartNew }: VideosDisplayProps
                 </div>
               </div>
             ) : video.error ? (
-              <div className="aspect-video bg-destructive/10 flex items-center justify-center p-6">
-                <div className="text-center">
+              <div className="aspect-video bg-destructive/10 flex flex-col items-center justify-center p-6">
+                <div className="text-center mb-4">
                   <p className="text-destructive font-medium mb-2">
                     Failed to generate video
                   </p>
-                  <p className="text-sm text-muted-foreground">{video.error}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{video.error}</p>
                 </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handleRetryVideo(video.sceneNumber)}
+                  disabled={retryingScenes.has(video.sceneNumber)}
+                  data-testid={`button-retry-${video.sceneNumber}`}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${retryingScenes.has(video.sceneNumber) ? 'animate-spin' : ''}`} />
+                  {retryingScenes.has(video.sceneNumber) ? 'Regenerating...' : 'Try Again'}
+                </Button>
               </div>
             ) : (
               <div className="aspect-video bg-muted flex items-center justify-center">
