@@ -1,7 +1,7 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { storyInputSchema, type Scene } from "@shared/schema";
+import { storyInputSchema, loginSchema, insertUserSchema, type Scene } from "@shared/schema";
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
@@ -17,7 +17,131 @@ const cloudinaryUploadCache = new Map<string, Promise<string>>();
 // Cache to store merged video file paths by unique ID
 const mergedVideoCache = new Map<string, string>();
 
+// Authentication middleware
+const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  next();
+};
+
+const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  const user = await storage.getUser(req.session.userId);
+  if (!user || !user.isAdmin) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Login endpoint
+  app.post("/api/login", async (req, res) => {
+    try {
+      const validationResult = loginSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { username, password } = validationResult.data;
+
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+
+      req.session.userId = user.id;
+      
+      res.json({ 
+        success: true,
+        user: { 
+          id: user.id, 
+          username: user.username, 
+          isAdmin: user.isAdmin 
+        } 
+      });
+    } catch (error) {
+      console.error("Error in /api/login:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  // Check session endpoint
+  app.get("/api/session", async (req, res) => {
+    if (!req.session.userId) {
+      return res.json({ authenticated: false });
+    }
+
+    const user = await storage.getUser(req.session.userId);
+    
+    if (!user) {
+      req.session.userId = undefined;
+      return res.json({ authenticated: false });
+    }
+
+    res.json({ 
+      authenticated: true,
+      user: { 
+        id: user.id, 
+        username: user.username, 
+        isAdmin: user.isAdmin 
+      } 
+    });
+  });
+
+  // Create user endpoint (admin only)
+  app.post("/api/users", requireAdmin, async (req, res) => {
+    try {
+      const validationResult = insertUserSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { username, password, isAdmin } = validationResult.data;
+
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+
+      const newUser = await storage.createUser({ username, password, isAdmin });
+      
+      res.json({ 
+        success: true,
+        user: { 
+          id: newUser.id, 
+          username: newUser.username, 
+          isAdmin: newUser.isAdmin 
+        } 
+      });
+    } catch (error) {
+      console.error("Error in /api/users:", error);
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
   // Scene generation endpoint
   app.post("/api/generate-scenes", async (req, res) => {
     try {
