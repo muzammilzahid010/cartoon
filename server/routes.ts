@@ -4,7 +4,12 @@ import { storage } from "./storage";
 import { storyInputSchema, type Scene } from "@shared/schema";
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion } from "./veo3";
+import { uploadVideoToCloudinary } from "./cloudinary";
 import { z } from "zod";
+
+// Cache to store Cloudinary URL promises by sceneId to avoid re-uploading
+// Using promises allows concurrent requests to await the same upload
+const cloudinaryUploadCache = new Map<string, Promise<string>>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Scene generation endpoint
@@ -112,6 +117,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const status = await checkVideoStatus(operationName, sceneId, apiKey);
+
+      // If video is completed, handle Cloudinary upload with caching
+      if (status.videoUrl && (status.status === 'COMPLETED' || status.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || status.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL')) {
+        // Check if upload is already in progress or completed
+        let uploadPromise = cloudinaryUploadCache.get(sceneId);
+        
+        if (!uploadPromise) {
+          // No upload in progress, start new upload
+          console.log(`[Video Status] Starting Cloudinary upload for ${sceneId}...`);
+          uploadPromise = uploadVideoToCloudinary(status.videoUrl);
+          
+          // Cache the promise immediately to prevent concurrent uploads
+          cloudinaryUploadCache.set(sceneId, uploadPromise);
+          
+          // Handle upload completion/failure
+          uploadPromise
+            .then(() => console.log(`[Video Status] Upload completed for ${sceneId}`))
+            .catch((error) => {
+              console.error(`[Video Status] Upload failed for ${sceneId}:`, error);
+              // Remove failed upload from cache so it can be retried
+              cloudinaryUploadCache.delete(sceneId);
+            });
+        } else {
+          console.log(`[Video Status] Using cached/in-progress upload for ${sceneId}`);
+        }
+        
+        // Await the upload (will be instant if already resolved)
+        try {
+          status.videoUrl = await uploadPromise;
+        } catch (uploadError) {
+          console.error(`[Video Status] Failed to get Cloudinary URL:`, uploadError);
+          // Continue with original VEO URL if Cloudinary upload fails
+        }
+      }
 
       res.json(status);
     } catch (error) {
@@ -231,10 +270,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Wait for completion
           const result = await waitForVideoCompletion(op.operationName, op.sceneId, apiKey);
 
+          // Upload video to Cloudinary for easy download
+          console.log(`[Video Gen] Uploading scene ${op.scene.scene} to Cloudinary...`);
+          let finalVideoUrl = result.videoUrl;
+          try {
+            finalVideoUrl = await uploadVideoToCloudinary(result.videoUrl);
+            console.log(`[Video Gen] Scene ${op.scene.scene} uploaded to Cloudinary successfully`);
+          } catch (uploadError) {
+            console.error(`[Video Gen] Failed to upload scene ${op.scene.scene} to Cloudinary:`, uploadError);
+            // Continue with original VEO URL if Cloudinary upload fails
+          }
+
           videos.push({
             sceneNumber: op.scene.scene,
             sceneTitle: op.scene.title,
-            videoUrl: result.videoUrl,
+            videoUrl: finalVideoUrl,
             status: 'completed'
           });
 
@@ -242,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.write(`data: ${JSON.stringify({ 
             type: 'video_complete', 
             sceneNumber: op.scene.scene,
-            videoUrl: result.videoUrl
+            videoUrl: finalVideoUrl
           })}\n\n`);
 
         } catch (error) {

@@ -141,7 +141,17 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
                   <source src={video.videoUrl} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
-                <div className="absolute bottom-4 right-4">
+                <div className="absolute bottom-4 right-4 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleRetryVideo(video.sceneNumber)}
+                    disabled={retryingScenes.has(video.sceneNumber)}
+                    data-testid={`button-regenerate-${video.sceneNumber}`}
+                    title="Regenerate this video"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${retryingScenes.has(video.sceneNumber) ? 'animate-spin' : ''}`} />
+                  </Button>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -152,6 +162,7 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
                       link.click();
                     }}
                     data-testid={`button-download-${video.sceneNumber}`}
+                    title="Download this video"
                   >
                     <Download className="w-4 h-4" />
                   </Button>
