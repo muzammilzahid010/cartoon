@@ -5,6 +5,7 @@ import { storyInputSchema, type Scene } from "@shared/schema";
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
+import { mergeVideos } from "./videoMerger";
 import { z } from "zod";
 
 // Cache to store Cloudinary URL promises by sceneId to avoid re-uploading
@@ -325,6 +326,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in /api/generate-all-videos:", error);
       res.status(500).json({ 
         error: "Failed to generate videos",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Merge all videos into one
+  app.post("/api/merge-videos", async (req, res) => {
+    try {
+      const schema = z.object({
+        videos: z.array(z.object({
+          sceneNumber: z.number(),
+          videoUrl: z.string()
+        }))
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { videos } = validationResult.data;
+
+      if (videos.length === 0) {
+        return res.status(400).json({ 
+          error: "No videos to merge" 
+        });
+      }
+
+      console.log(`[Merge Videos] Starting merge of ${videos.length} videos`);
+
+      // Sort videos by scene number before merging to ensure correct sequence
+      const sortedVideos = [...videos].sort((a, b) => a.sceneNumber - b.sceneNumber);
+
+      // Merge videos and upload to Cloudinary
+      const mergedVideoUrl = await mergeVideos(sortedVideos);
+
+      res.json({ 
+        success: true,
+        mergedVideoUrl 
+      });
+    } catch (error) {
+      console.error("Error in /api/merge-videos:", error);
+      res.status(500).json({ 
+        error: "Failed to merge videos",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

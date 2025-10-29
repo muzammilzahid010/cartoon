@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RotateCcw, Download, Play, RefreshCw } from "lucide-react";
+import { RotateCcw, Download, Play, RefreshCw, Film } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface GeneratedVideo {
   sceneNumber: number;
@@ -22,6 +23,9 @@ interface VideosDisplayProps {
 export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetryAllFailed }: VideosDisplayProps) {
   const [retryingScenes, setRetryingScenes] = useState<Set<number>>(new Set());
   const [retryingAll, setRetryingAll] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergedVideoUrl, setMergedVideoUrl] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const completedVideos = videos.filter(v => v.status === 'completed');
   const failedVideos = videos.filter(v => v.status === 'failed');
@@ -64,6 +68,57 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
     }
   };
 
+  const handleMergeVideos = async () => {
+    if (completedVideos.length < 2) {
+      toast({
+        title: "Cannot Merge",
+        description: "You need at least 2 completed videos to merge.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setMerging(true);
+    try {
+      const videosToMerge = completedVideos
+        .sort((a, b) => a.sceneNumber - b.sceneNumber)
+        .map(v => ({
+          sceneNumber: v.sceneNumber,
+          videoUrl: v.videoUrl!
+        }));
+
+      const response = await fetch('/api/merge-videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videos: videosToMerge }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to merge videos');
+      }
+
+      const result = await response.json();
+      setMergedVideoUrl(result.mergedVideoUrl);
+      
+      toast({
+        title: "Videos Merged!",
+        description: "All videos have been successfully merged into one.",
+      });
+    } catch (error) {
+      console.error("Error merging videos:", error);
+      toast({
+        title: "Merge Failed",
+        description: error instanceof Error ? error.message : "Failed to merge videos.",
+        variant: "destructive",
+      });
+    } finally {
+      setMerging(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -96,16 +151,71 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
             Start New Story
           </Button>
           {completedVideos.length > 0 && (
-            <Button
-              onClick={handleDownloadAll}
-              data-testid="button-download-all"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download All
-            </Button>
+            <>
+              <Button
+                onClick={handleMergeVideos}
+                disabled={merging || completedVideos.length < 2}
+                data-testid="button-merge-videos"
+                variant="default"
+              >
+                <Film className={`w-4 h-4 mr-2 ${merging ? 'animate-pulse' : ''}`} />
+                {merging ? 'Merging...' : 'Merge All Videos'}
+              </Button>
+              <Button
+                onClick={handleDownloadAll}
+                data-testid="button-download-all"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download All
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {mergedVideoUrl && (
+        <Card className="mb-8 overflow-hidden" data-testid="merged-video-card">
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="default">
+                    <Film className="w-3 h-3 mr-1" />
+                    Merged Video
+                  </Badge>
+                  <Badge variant="default">All {completedVideos.length} scenes</Badge>
+                </div>
+                <h3 className="font-semibold">Complete Story</h3>
+              </div>
+            </div>
+          </div>
+          <div className="relative aspect-video bg-black">
+            <video
+              controls
+              className="w-full h-full"
+              data-testid="merged-video-player"
+            >
+              <source src={mergedVideoUrl} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            <div className="absolute bottom-4 right-4">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = mergedVideoUrl;
+                  link.download = 'merged-story.mp4';
+                  link.click();
+                }}
+                data-testid="button-download-merged"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {videos.map((video) => (
