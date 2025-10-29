@@ -43,7 +43,8 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure**:
 - RESTful endpoint architecture
-- Authentication endpoints: `POST /api/login`, `POST /api/logout`, `GET /api/session`, `POST /api/users`
+- Authentication endpoints: `POST /api/login`, `POST /api/logout`, `GET /api/session`
+- User management endpoints: `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id/plan`, `PATCH /api/users/:id/token` (admin only)
 - Scene generation endpoint: `POST /api/generate-scenes`
 - Video generation endpoints: `POST /api/generate-video`, `POST /api/generate-all-videos`
 - Video merging endpoint: `POST /api/merge-videos`
@@ -68,7 +69,7 @@ Preferred communication style: Simple, everyday language.
 - Database prepared but not currently utilized for runtime storage
 
 **Data Models**:
-- Users table with id, username, password (hashed with bcrypt), isAdmin fields
+- Users table with id, username, password (hashed with bcrypt), isAdmin, planType, planStatus, planExpiry, apiToken fields
 - Character schema: id, name, description
 - Story input schema: script (min 50 chars), characters array (min 1)
 - Scene output schema: scene number, title, description with structured elements
@@ -76,11 +77,24 @@ Preferred communication style: Simple, everyday language.
 **Authentication System**:
 - Session-based authentication using express-session with MemoryStore
 - Password hashing with bcrypt (10 salt rounds) for secure storage
-- Default admin account: username `muzi`, password `muzi123` (hashed)
+- Default admin account: username `muzi`, password `muzi123` (hashed with premium plan)
 - Role-based access control with isAdmin flag
 - Protected routes using requireAuth and requireAdmin middleware
 - Login, logout, and session management endpoints
 - User creation restricted to admin users only
+
+**User Management System**:
+- Admin panel at `/admin` for managing all users
+- View all users with complete details (username, role, plan, status, expiry, API token)
+- Plan management: 
+  - Plan types: free, basic, premium
+  - Plan statuses: active, expired, cancelled
+  - Optional expiry date for time-limited access
+- API token management: Admins can assign/change bearer tokens for users
+- User management endpoints: 
+  - `GET /api/users` - List all users (admin only)
+  - `PATCH /api/users/:id/plan` - Update user plan details (admin only)
+  - `PATCH /api/users/:id/token` - Update user API token (admin only)
 
 ### External Dependencies
 
@@ -130,12 +144,16 @@ Preferred communication style: Simple, everyday language.
 
 ### Application Flow
 
-**Authentication Pages:**
+**Authentication & Admin Pages:**
 - **Login Page (`/login`)**: Form with username/password fields, displays default admin credentials
-- **Admin Page (`/admin`)**: Protected page for creating new user accounts (admin only)
-  - Form to create users with username, password, and admin role toggle
-  - Requires admin authentication to access
-  - Shows logout and home navigation
+- **Admin Page (`/admin`)**: Protected admin dashboard for user and system management
+  - **User Creation**: Form to create new users with username, password, and admin role toggle
+  - **User Management Table**: View all users with complete details
+    - Username, role (admin/user), plan type, plan status, expiry date, API token
+    - Edit plan controls: Change plan type (free/basic/premium), status (active/expired/cancelled), and expiry date
+    - Edit token controls: Assign or update API bearer tokens for users
+  - **Access Control**: Requires admin authentication, redirects non-admins to login
+  - **Navigation**: Home and logout buttons in header
 
 **Main Application Flow:**
 1. **Landing (Step 0)**: Hero page with call-to-action to start creating
