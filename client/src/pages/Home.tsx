@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import Hero from "@/components/Hero";
 import ProgressStepper from "@/components/ProgressStepper";
 import ScriptForm from "@/components/ScriptForm";
@@ -11,6 +12,7 @@ import ScenesDisplay from "@/components/ScenesDisplay";
 import VideoGenerationProgress from "@/components/VideoGenerationProgress";
 import VideosDisplay from "@/components/VideosDisplay";
 import type { StoryInput, Scene } from "@shared/schema";
+import { LogIn, Shield, LogOut, User } from "lucide-react";
 
 const STEPS = [
   { id: 1, title: "Story & Characters", description: "Input details" },
@@ -47,6 +49,27 @@ export default function Home() {
   const [currentVideoScene, setCurrentVideoScene] = useState(0);
   const { toast } = useToast();
   const abortControllersRef = useRef<Map<number, AbortController>>(new Map());
+
+  const { data: session } = useQuery<{
+    authenticated: boolean;
+    user?: { id: string; username: string; isAdmin: boolean };
+  }>({
+    queryKey: ["/api/session"],
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/logout", {});
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/session"] });
+      toast({
+        title: "Logged out successfully",
+      });
+    },
+  });
 
   // Cleanup abort controllers on unmount or step change
   useEffect(() => {
@@ -365,6 +388,47 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Cartoon Story Video Generator</h1>
+          <div className="flex items-center gap-3">
+            {session?.authenticated ? (
+              <>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span className="text-gray-900 dark:text-white">{session.user?.username}</span>
+                </div>
+                {session.user?.isAdmin && (
+                  <Link href="/admin">
+                    <Button variant="outline" size="sm" data-testid="link-admin" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                      <Shield className="w-4 h-4 mr-1" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoutMutation.mutate()}
+                  disabled={logoutMutation.isPending}
+                  data-testid="button-header-logout"
+                  className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" size="sm" data-testid="link-login" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                  <LogIn className="w-4 h-4 mr-1" />
+                  Login
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
       {currentStep === 0 ? (
         <Hero onGetStarted={handleGetStarted} />
       ) : (
