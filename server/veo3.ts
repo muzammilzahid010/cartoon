@@ -49,6 +49,9 @@ interface VideoStatusResponse {
         message: string;
       };
       videoUrl?: string;
+      fileUrl?: string;
+      downloadUrl?: string;
+      [key: string]: any; // Allow for other fields
     };
     sceneId: string;
     status: string;
@@ -204,10 +207,20 @@ export async function checkVideoStatus(
 
   const operationData = data.operations[0];
   console.log(`[VEO3] Operation status: ${operationData.status}`);
+  console.log(`[VEO3] Operation data:`, JSON.stringify(operationData.operation, null, 2));
+  
+  // Check for both videoUrl and fileUrl
+  const videoUrl = (operationData.operation as any).videoUrl || 
+                   (operationData.operation as any).fileUrl ||
+                   (operationData.operation as any).downloadUrl;
+  
+  if (videoUrl) {
+    console.log(`[VEO3] Found video URL: ${videoUrl}`);
+  }
   
   return {
     status: operationData.status,
-    videoUrl: operationData.operation.videoUrl,
+    videoUrl: videoUrl,
     error: operationData.operation.error?.message
   };
 }
@@ -220,13 +233,21 @@ export async function waitForVideoCompletion(
   maxWaitTime: number = 300000 // 5 minutes default
 ): Promise<{ videoUrl: string }> {
   const startTime = Date.now();
-  const pollInterval = 5000; // Check every 5 seconds
+  const pollInterval = 10000; // Check every 10 seconds
+  const initialDelay = 15000; // Wait 15 seconds before first check
+
+  // Wait initially to give the API time to process
+  console.log(`[VEO3] Waiting ${initialDelay/1000}s before first status check for ${sceneId}`);
+  await new Promise(resolve => setTimeout(resolve, initialDelay));
 
   while (Date.now() - startTime < maxWaitTime) {
     const status = await checkVideoStatus(operationName, sceneId, apiKey);
 
+    console.log(`[VEO3] Polling status for ${sceneId}: ${status.status}`);
+
     if (status.status === "COMPLETED" || status.status === "MEDIA_GENERATION_STATUS_COMPLETE") {
       if (status.videoUrl) {
+        console.log(`[VEO3] Video completed successfully with URL: ${status.videoUrl}`);
         return { videoUrl: status.videoUrl };
       }
       throw new Error("Video completed but no URL provided");
