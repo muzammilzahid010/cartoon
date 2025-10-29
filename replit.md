@@ -76,7 +76,7 @@ Preferred communication style: Simple, everyday language.
 **Authentication System**:
 - Session-based authentication using express-session with MemoryStore
 - Password hashing with bcrypt (10 salt rounds) for secure storage
-- Default admin account: username `admin`, password `admin123` (hashed)
+- Default admin account: username `muzi`, password `muzi123` (hashed)
 - Role-based access control with isAdmin flag
 - Protected routes using requireAuth and requireAdmin middleware
 - Login, logout, and session management endpoints

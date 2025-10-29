@@ -20,13 +20,13 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     
-    // Create default admin user (username: admin, password: admin123)
+    // Create default admin user (username: muzi, password: muzi123)
     // Password is hashed using bcrypt (synchronously in constructor)
     const adminId = randomUUID();
-    const hashedPassword = bcrypt.hashSync("admin123", SALT_ROUNDS);
+    const hashedPassword = bcrypt.hashSync("muzi123", SALT_ROUNDS);
     const defaultAdmin: User = {
       id: adminId,
-      username: "admin",
+      username: "muzi",
       password: hashedPassword,
       isAdmin: true,
     };
