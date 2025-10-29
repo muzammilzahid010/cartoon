@@ -8,6 +8,10 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   isAdmin: boolean("is_admin").notNull().default(false),
+  planType: text("plan_type").notNull().default("free"),
+  planStatus: text("plan_status").notNull().default("active"),
+  planExpiry: text("plan_expiry"),
+  apiToken: text("api_token"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -16,8 +20,20 @@ export const insertUserSchema = createInsertSchema(users).pick({
   isAdmin: true,
 });
 
+export const updateUserPlanSchema = z.object({
+  planType: z.enum(["free", "basic", "premium"]),
+  planStatus: z.enum(["active", "expired", "cancelled"]),
+  planExpiry: z.string().optional(),
+});
+
+export const updateUserApiTokenSchema = z.object({
+  apiToken: z.string(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UpdateUserPlan = z.infer<typeof updateUserPlanSchema>;
+export type UpdateUserApiToken = z.infer<typeof updateUserApiTokenSchema>;
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),

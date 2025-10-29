@@ -1,4 +1,4 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUserPlan, type UpdateUserApiToken } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
 
@@ -10,7 +10,10 @@ const SALT_ROUNDS = 10;
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined>;
+  updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined>;
   verifyPassword(user: User, password: string): Promise<boolean>;
 }
 
@@ -29,6 +32,10 @@ export class MemStorage implements IStorage {
       username: "muzi",
       password: hashedPassword,
       isAdmin: true,
+      planType: "premium",
+      planStatus: "active",
+      planExpiry: null,
+      apiToken: null,
     };
     this.users.set(adminId, defaultAdmin);
   }
@@ -50,10 +57,46 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id,
       password: hashedPassword,
-      isAdmin: insertUser.isAdmin ?? false 
+      isAdmin: insertUser.isAdmin ?? false,
+      planType: "free",
+      planStatus: "active",
+      planExpiry: null,
+      apiToken: null,
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+
+    const updatedUser: User = {
+      ...user,
+      planType: plan.planType,
+      planStatus: plan.planStatus,
+      planExpiry: plan.planExpiry ?? null,
+    };
+    
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  async updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+
+    const updatedUser: User = {
+      ...user,
+      apiToken: token.apiToken,
+    };
+    
+    this.users.set(userId, updatedUser);
+    return updatedUser;
   }
 
   async verifyPassword(user: User, password: string): Promise<boolean> {
