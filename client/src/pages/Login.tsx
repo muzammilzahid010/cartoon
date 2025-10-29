@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Film } from "lucide-react";
 
 const loginSchema = z.object({
@@ -43,17 +43,23 @@ export default function Login() {
       const result = await response.json();
       return result as { success: boolean; user: { id: string; username: string; isAdmin: boolean } };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Invalidate session cache to force refetch with new session data
+      await queryClient.invalidateQueries({ queryKey: ["/api/session"] });
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${data.user.username}!`,
       });
       
-      if (data.user.isAdmin) {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
-      }
+      // Small delay to allow session query to update
+      setTimeout(() => {
+        if (data.user.isAdmin) {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
+        }
+      }, 100);
     },
     onError: (error: any) => {
       toast({
