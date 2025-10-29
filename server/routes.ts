@@ -239,9 +239,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString()
           })}\n\n`);
 
-          // Short 1 second delay to avoid rate limits (unless it's the last scene)
+          // 2-3 second delay to avoid rate limits (unless it's the last scene)
           if (i < scenes.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const delay = 2000 + Math.random() * 1000; // Random delay between 2-3 seconds
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
 
         } catch (error) {
