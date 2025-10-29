@@ -4,7 +4,10 @@ import type { Scene, StoryInput } from "@shared/schema";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export async function generateScenes(storyInput: StoryInput): Promise<Scene[]> {
+const MIN_ACCEPTABLE_SCENES = 5;
+const MAX_RETRY_ATTEMPTS = 3;
+
+async function attemptSceneGeneration(storyInput: StoryInput): Promise<Scene[]> {
   try {
     // Build character descriptions
     const characterDescriptions = storyInput.characters
@@ -93,6 +96,50 @@ Generate as many detailed scenes as you can from the above script.`;
     return scenes;
   } catch (error) {
     console.error("Error generating scenes:", error);
-    throw new Error(`Failed to generate scenes: ${error}`);
+    throw error;
   }
+}
+
+export async function generateScenes(storyInput: StoryInput): Promise<Scene[]> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+    try {
+      console.log(`Scene generation attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
+      
+      const scenes = await attemptSceneGeneration(storyInput);
+      
+      // Check if we got enough scenes
+      if (scenes.length < MIN_ACCEPTABLE_SCENES) {
+        console.log(`Generated only ${scenes.length} scenes, retrying for more...`);
+        lastError = new Error(`Insufficient scenes: got ${scenes.length}, need at least ${MIN_ACCEPTABLE_SCENES}`);
+        
+        // If this is the last attempt, throw error instead of continuing
+        if (attempt >= MAX_RETRY_ATTEMPTS) {
+          throw lastError;
+        }
+        
+        // Wait and retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        continue;
+      }
+      
+      // Success - we have enough scenes
+      console.log(`Successfully generated ${scenes.length} scenes on attempt ${attempt}`);
+      return scenes;
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`Attempt ${attempt} failed:`, lastError.message);
+      
+      // Only retry if not the last attempt
+      if (attempt < MAX_RETRY_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        continue;
+      }
+    }
+  }
+  
+  // All attempts failed
+  throw new Error(`Failed to generate scenes after ${MAX_RETRY_ATTEMPTS} attempts: ${lastError?.message || 'Unknown error'}`);
 }

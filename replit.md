@@ -76,6 +76,18 @@ Preferred communication style: Simple, everyday language.
 - Used for transforming story scripts into detailed scene descriptions
 - System prompts optimized for 8-second cinematic scenes with specific output format
 - Generates structured JSON with visuals, dialogue, music, sound effects, and transitions
+- **Automatic Retry Logic**: 
+  - Retries up to 3 times on failure (invisible to users)
+  - Validates minimum of 5 scenes are generated
+  - Exponential backoff between retry attempts (1s, 2s)
+  - Ensures consistent quality without user intervention
+
+**Video Generation**: VEO 3 API
+- Integration for generating cartoon-style videos from scene prompts
+- Sequential processing of scenes with real-time progress tracking
+- Server-Sent Events (SSE) for streaming progress updates
+- Automatic prompt cleaning (removes special characters: " * , : ; _ -)
+- Each video is approximately 8 seconds matching scene duration
 
 **Database**: 
 - Neon PostgreSQL (via `@neondatabase/serverless`)
@@ -91,12 +103,24 @@ Preferred communication style: Simple, everyday language.
 
 **Environment Variables Required**:
 - `GEMINI_API_KEY` - Google Gemini API authentication
+- `VEO3_API_KEY` - VEO 3 API authentication for video generation
+- `VEO3_PROJECT_ID` - VEO 3 project identifier (optional, extracted from API response)
 - `DATABASE_URL` - PostgreSQL connection string (configured but optional for current in-memory operation)
 
 ### Application Flow
 
-1. **Landing**: Hero page with call-to-action to start creating
-2. **Input Step**: Multi-character form with script textarea and dynamic character inputs
-3. **Processing**: Loading state with animated feedback while AI generates scenes
-4. **Results**: Grid display of generated scenes with structured information cards
-5. **Export**: JSON download functionality for integration with video generation tools
+1. **Landing (Step 0)**: Hero page with call-to-action to start creating
+2. **Input (Step 1)**: Multi-character form with script textarea and dynamic character inputs
+3. **Scene Generation (Step 2)**: Loading state with animated feedback while AI generates scenes
+   - Automatic retry logic handles failures transparently
+   - Validates scene count and quality
+4. **Review Scenes (Step 3)**: Grid display of generated scenes with structured information cards
+   - Shows all scene details (visuals, dialogue, music, SFX, transitions)
+   - Option to start new story or proceed to video generation
+5. **Generate Videos (Step 4)**: Real-time progress tracking for video generation
+   - Sequential processing of each scene
+   - Live status updates via Server-Sent Events
+   - Progress bar and per-scene status indicators
+6. **View Videos (Step 5)**: Final display with video players and download options
+   - Watch generated videos inline
+   - Download individual videos or all at once
