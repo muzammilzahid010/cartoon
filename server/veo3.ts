@@ -84,8 +84,11 @@ export async function generateVideoForScene(
   const sceneId = `scene-${scene.scene}-${Date.now()}`;
   const prompt = getScenePrompt(scene);
 
-  // Trim the API key to remove any whitespace
-  const trimmedApiKey = apiKey.trim();
+  // Trim the API key and remove "Bearer " prefix if present
+  let trimmedApiKey = apiKey.trim();
+  if (trimmedApiKey.startsWith('Bearer ')) {
+    trimmedApiKey = trimmedApiKey.substring(7); // Remove "Bearer " prefix
+  }
 
   console.log(`[VEO3] Generating video for scene ${scene.scene}`);
   console.log(`[VEO3] Project ID: ${projectId}`);
@@ -149,8 +152,11 @@ export async function checkVideoStatus(
   sceneId: string,
   apiKey: string
 ): Promise<{ status: string; videoUrl?: string; error?: string }> {
-  // Trim the API key to remove any whitespace
-  const trimmedApiKey = apiKey.trim();
+  // Trim the API key and remove "Bearer " prefix if present
+  let trimmedApiKey = apiKey.trim();
+  if (trimmedApiKey.startsWith('Bearer ')) {
+    trimmedApiKey = trimmedApiKey.substring(7); // Remove "Bearer " prefix
+  }
 
   const requestBody: VideoStatusRequest = {
     operations: [{
