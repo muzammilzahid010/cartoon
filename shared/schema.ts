@@ -107,3 +107,23 @@ export const sceneSchema = z.object({
 });
 
 export type Scene = z.infer<typeof sceneSchema>;
+
+// Video history schema for storing generated videos
+export const videoHistory = pgTable("video_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  prompt: text("prompt").notNull(),
+  aspectRatio: text("aspect_ratio").notNull(),
+  videoUrl: text("video_url"),
+  status: text("status").notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
+  title: text("title"),
+});
+
+export const insertVideoHistorySchema = createInsertSchema(videoHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type VideoHistory = typeof videoHistory.$inferSelect;
+export type InsertVideoHistory = z.infer<typeof insertVideoHistorySchema>;

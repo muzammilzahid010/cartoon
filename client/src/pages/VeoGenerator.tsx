@@ -32,7 +32,34 @@ export default function VeoGenerator() {
     setVideoUrl(null);
     setError(null);
 
+    let historyEntryId: string | null = null;
+
     try {
+      // Save to history as pending first
+      try {
+        const historyResponse = await fetch('/api/video-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: '', // Will be set by backend
+            prompt,
+            aspectRatio,
+            status: 'pending',
+            title: `VEO ${aspectRatio} video`,
+          }),
+        });
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          historyEntryId = historyData.video.id;
+        }
+      } catch (historyError) {
+        console.error('Failed to save pending video to history:', historyError);
+        // Continue with generation even if history save fails
+      }
+
       // Start video generation
       const response = await fetch('/api/generate-veo-video', {
         method: 'POST',
@@ -74,6 +101,25 @@ export default function VeoGenerator() {
             statusData.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
           setVideoUrl(statusData.videoUrl);
           completed = true;
+          
+          // Update history with completed status and video URL
+          if (historyEntryId) {
+            try {
+              await fetch(`/api/video-history/${historyEntryId}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  status: 'completed',
+                  videoUrl: statusData.videoUrl,
+                }),
+              });
+            } catch (historyError) {
+              console.error('Failed to update history:', historyError);
+            }
+          }
+          
           toast({
             title: "Video generated!",
             description: "Your video is ready to watch and download.",
@@ -91,6 +137,24 @@ export default function VeoGenerator() {
       console.error("Error generating video:", err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate video';
       setError(errorMessage);
+      
+      // Update history with failed status
+      if (historyEntryId) {
+        try {
+          await fetch(`/api/video-history/${historyEntryId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: 'failed',
+            }),
+          });
+        } catch (historyError) {
+          console.error('Failed to update history:', historyError);
+        }
+      }
+      
       toast({
         title: "Generation failed",
         description: errorMessage,

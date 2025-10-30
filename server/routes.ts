@@ -380,6 +380,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Video history endpoints
+  app.get("/api/video-history", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const videos = await storage.getUserVideoHistory(userId);
+      res.json({ videos });
+    } catch (error) {
+      console.error("Error fetching video history:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch video history",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/video-history", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        prompt: z.string().min(10, "Prompt must be at least 10 characters"),
+        aspectRatio: z.enum(["landscape", "portrait"]),
+        videoUrl: z.string().optional(),
+        status: z.enum(["pending", "completed", "failed"]),
+        title: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const video = await storage.addVideoHistory({
+        userId,
+        ...validationResult.data
+      });
+
+      res.json({ video });
+    } catch (error) {
+      console.error("Error saving video history:", error);
+      res.status(500).json({ 
+        error: "Failed to save video history",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.patch("/api/video-history/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        status: z.enum(["pending", "completed", "failed"]),
+        videoUrl: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { status, videoUrl } = validationResult.data;
+
+      const updated = await storage.updateVideoHistoryStatus(id, userId, status, videoUrl);
+
+      if (!updated) {
+        return res.status(404).json({ error: "Video history entry not found or access denied" });
+      }
+
+      res.json({ video: updated });
+    } catch (error) {
+      console.error("Error updating video history:", error);
+      res.status(500).json({ 
+        error: "Failed to update video history",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Scene generation endpoint
   app.post("/api/generate-scenes", async (req, res) => {
     try {

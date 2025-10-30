@@ -7,9 +7,12 @@ import {
   type InsertApiToken,
   type TokenSettings,
   type UpdateTokenSettings,
+  type VideoHistory,
+  type InsertVideoHistory,
   users,
   apiTokens,
   tokenSettings,
+  videoHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -42,6 +45,11 @@ export interface IStorage {
   getTokenSettings(): Promise<TokenSettings | undefined>;
   updateTokenSettings(settings: UpdateTokenSettings): Promise<TokenSettings>;
   initializeTokenSettings(): Promise<void>;
+  
+  // Video history
+  getUserVideoHistory(userId: string): Promise<VideoHistory[]>;
+  addVideoHistory(video: InsertVideoHistory): Promise<VideoHistory>;
+  updateVideoHistoryStatus(videoId: string, userId: string, status: string, videoUrl?: string): Promise<VideoHistory | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -250,6 +258,42 @@ export class DatabaseStorage implements IStorage {
       await db.insert(tokenSettings).values({});
       console.log("✓ Token rotation settings initialized");
     }
+  }
+
+  // Video history methods
+  async getUserVideoHistory(userId: string): Promise<VideoHistory[]> {
+    return await db
+      .select()
+      .from(videoHistory)
+      .where(eq(videoHistory.userId, userId))
+      .orderBy(desc(videoHistory.createdAt));
+  }
+
+  async addVideoHistory(video: InsertVideoHistory): Promise<VideoHistory> {
+    const [newVideo] = await db
+      .insert(videoHistory)
+      .values(video)
+      .returning();
+    return newVideo;
+  }
+
+  async updateVideoHistoryStatus(
+    videoId: string,
+    userId: string,
+    status: string,
+    videoUrl?: string
+  ): Promise<VideoHistory | undefined> {
+    const updateData: Partial<VideoHistory> = { status };
+    if (videoUrl) {
+      updateData.videoUrl = videoUrl;
+    }
+
+    const [updated] = await db
+      .update(videoHistory)
+      .set(updateData)
+      .where(and(eq(videoHistory.id, videoId), eq(videoHistory.userId, userId)))
+      .returning();
+    return updated || undefined;
   }
 }
 
