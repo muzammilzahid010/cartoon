@@ -20,10 +20,6 @@ localPort = 35043
 externalPort = 3000
 
 [[ports]]
-localPort = 35589
-externalPort = 4200
-
-[[ports]]
 localPort = 38423
 externalPort = 3003
 
@@ -62,3 +58,6 @@ waitForPort = 5000
 [agent]
 integrations = ["javascript_gemini:1.0.0", "javascript_database:1.0.0", "javascript_object_storage:1.0.0"]
 expertMode = true
+
+[objectStorage]
+defaultBucketID = "replit-objstore-538a4c78-d1c6-46f2-8946-f4ad088b751a"
