@@ -405,6 +405,26 @@ export default function Home() {
                       }
                     : p
                 ));
+
+                // Save completed video to history
+                try {
+                  const sceneData = scenes.find(s => s.scene === data.sceneNumber);
+                  await fetch('/api/video-history', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      prompt: sceneData?.description || 'Scene video',
+                      aspectRatio: 'landscape',
+                      status: 'completed',
+                      videoUrl: data.videoUrl,
+                      title: sceneData?.title || `Scene ${data.sceneNumber}`,
+                    }),
+                  });
+                } catch (historyError) {
+                  console.error('Failed to save video to history:', historyError);
+                }
               } else if (data.type === 'error') {
                 setVideoProgress(prev => prev.map(p => 
                   p.sceneNumber === data.sceneNumber 
