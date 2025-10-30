@@ -859,7 +859,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString()
           });
 
-          // 5 second delay to avoid rate limits (unless it's the last scene)
+          // CRITICAL: 5-second delay between each VEO 3 API request to avoid rate limiting
+          // This applies to ALL environments (development, production, etc.)
+          // Do NOT reduce this delay - VEO 3 API will reject requests if sent too quickly
           if (i < scenes.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 5000));
           }
