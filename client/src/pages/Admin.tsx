@@ -65,13 +65,14 @@ export default function Admin() {
     user?: { id: string; username: string; isAdmin: boolean };
   }>({
     queryKey: ["/api/session"],
-    refetchOnMount: true,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery<{ users: UserData[] }>({
     queryKey: ["/api/users"],
-    enabled: session?.authenticated && session?.user?.isAdmin,
+    enabled: !isLoadingSession && session?.authenticated === true && session?.user?.isAdmin === true,
   });
 
   useEffect(() => {
