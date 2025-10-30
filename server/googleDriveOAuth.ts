@@ -7,11 +7,11 @@ interface GoogleDriveConfig {
   refreshToken: string;
 }
 
-function getOAuth2Client(config: GoogleDriveConfig) {
+function getOAuth2Client(config: GoogleDriveConfig, redirectUri?: string) {
   const oauth2Client = new google.auth.OAuth2(
     config.clientId,
     config.clientSecret,
-    'urn:ietf:wg:oauth:2.0:oob' // For installed apps
+    redirectUri || 'http://localhost:8080'
   );
 
   oauth2Client.setCredentials({
@@ -99,7 +99,7 @@ export async function generateAuthUrl(): Promise<string> {
   const oauth2Client = new google.auth.OAuth2(
     clientId,
     clientSecret,
-    'urn:ietf:wg:oauth:2.0:oob'
+    'http://localhost:8080'
   );
 
   const authUrl = oauth2Client.generateAuthUrl({
@@ -122,7 +122,7 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
   const oauth2Client = new google.auth.OAuth2(
     clientId,
     clientSecret,
-    'urn:ietf:wg:oauth:2.0:oob'
+    'http://localhost:8080'
   );
 
   const { tokens } = await oauth2Client.getToken(code);

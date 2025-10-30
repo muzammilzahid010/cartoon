@@ -42,8 +42,10 @@ Visit: https://console.cloud.google.com/
 
 4. Now create the OAuth client:
    - Go back to **Credentials** → **+ CREATE CREDENTIALS** → **OAuth client ID**
-   - Application type: **Desktop app**
+   - Application type: **Web application**
    - Name: "Video Upload App"
+   - Under **Authorized redirect URIs**, click **+ ADD URI**
+   - Add: `http://localhost:8080`
    - Click **Create**
 
 5. **IMPORTANT:** Copy both:
@@ -96,7 +98,11 @@ You should see a JSON response like:
 2. Open it in your browser
 3. Login with your Google account
 4. Click **Allow** to grant Drive access
-5. You'll see a code like: `4/0AY0e-g7X...` (copy this entire code)
+5. Google will redirect you to `http://localhost:8080/?code=...`
+6. **Your browser will show an error** (that's normal - localhost isn't running)
+7. Look at the URL bar and copy the **code** parameter
+   - Example URL: `http://localhost:8080/?code=4/0AY0e-g7X...&scope=...`
+   - Copy only the code part: `4/0AY0e-g7X...` (everything between `code=` and `&scope`)
 
 ### 3.4 Exchange Code for Refresh Token
 Use a tool like Postman, or run this curl command (replace the code):
