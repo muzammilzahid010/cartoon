@@ -164,6 +164,8 @@ Preferred communication style: Simple, everyday language.
 3. **Scene Generation (Step 2)**: Loading state with animated feedback while AI generates scenes
    - Automatic retry logic handles failures transparently
    - Validates scene count and quality
+   - **Error Handling**: If scene generation fails, displays error message with "Try Again" and "Start Over" buttons
+   - Retry preserves original story input and characters
 4. **Review Scenes (Step 3)**: Grid display of generated scenes with structured information cards
    - Shows all scene details (visuals, dialogue, music, SFX, transitions)
    - **Regenerate Scenes**: Users can regenerate all scenes with the same story input if not satisfied with results

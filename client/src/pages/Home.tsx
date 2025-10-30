@@ -47,6 +47,7 @@ export default function Home() {
   const [videoProgress, setVideoProgress] = useState<VideoProgress[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [currentVideoScene, setCurrentVideoScene] = useState(0);
+  const [sceneGenerationError, setSceneGenerationError] = useState<string | null>(null);
   const { toast } = useToast();
   const abortControllersRef = useRef<Map<number, AbortController>>(new Map());
 
@@ -88,6 +89,7 @@ export default function Home() {
     },
     onSuccess: (data) => {
       setScenes(data.scenes);
+      setSceneGenerationError(null);
       setCurrentStep(3);
       toast({
         title: "Success!",
@@ -96,12 +98,13 @@ export default function Home() {
     },
     onError: (error: Error) => {
       console.error("Error generating scenes:", error);
+      setSceneGenerationError(error.message || "Failed to generate scenes. Please try again.");
       toast({
-        title: "Error",
+        title: "Scene Generation Failed",
         description: error.message || "Failed to generate scenes. Please try again.",
         variant: "destructive",
       });
-      setCurrentStep(1);
+      // Stay on step 2 to show error with retry button
     },
   });
 
@@ -111,6 +114,7 @@ export default function Home() {
 
   const handleFormSubmit = async (data: StoryInput) => {
     setStoryInput(data); // Store the story input for later use
+    setSceneGenerationError(null); // Clear any previous errors
     setCurrentStep(2);
     generateScenesMutation.mutate(data);
   };
@@ -122,6 +126,7 @@ export default function Home() {
     setVideoProgress([]);
     setGeneratedVideos([]);
     setCurrentVideoScene(0);
+    setSceneGenerationError(null);
   };
 
   const handleRegenerateScenes = () => {
@@ -134,7 +139,22 @@ export default function Home() {
       return;
     }
     
+    setSceneGenerationError(null); // Clear error before retry
     setCurrentStep(2);
+    generateScenesMutation.mutate(storyInput);
+  };
+
+  const handleRetrySceneGeneration = () => {
+    if (!storyInput) {
+      toast({
+        title: "Error",
+        description: "No story input found. Please start a new story.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSceneGenerationError(null); // Clear error before retry
     generateScenesMutation.mutate(storyInput);
   };
 
@@ -440,7 +460,77 @@ export default function Home() {
           
           {currentStep === 1 && <ScriptForm onSubmit={handleFormSubmit} />}
           
-          {currentStep === 2 && <ProcessingState status="Analyzing your script and generating scenes..." />}
+          {currentStep === 2 && !sceneGenerationError && (
+            <ProcessingState status="Analyzing your script and generating scenes..." />
+          )}
+
+          {currentStep === 2 && sceneGenerationError && (
+            <div className="max-w-2xl mx-auto px-4 py-16">
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
+                <div className="mb-6">
+                  <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mb-4">
+                    <svg 
+                      className="w-8 h-8 text-red-600 dark:text-red-400" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-red-900 dark:text-red-100 mb-2">
+                    Scene Generation Failed
+                  </h2>
+                  <p className="text-red-700 dark:text-red-300 mb-6">
+                    {sceneGenerationError}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    size="lg"
+                    onClick={handleRetrySceneGeneration}
+                    disabled={generateScenesMutation.isPending}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 text-white"
+                    data-testid="button-retry-scenes"
+                  >
+                    {generateScenesMutation.isPending ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Retrying...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Try Again
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={handleStartNew}
+                    disabled={generateScenesMutation.isPending}
+                    className="border-2"
+                    data-testid="button-start-over"
+                  >
+                    Start Over
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {currentStep === 3 && (
             <div>
