@@ -1200,6 +1200,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update scene videos for a project
+  app.patch("/api/projects/:id/scene-videos", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { id } = req.params;
+      const schema = z.object({
+        sceneVideos: z.array(z.object({
+          sceneNumber: z.number(),
+          videoUrl: z.string().optional(),
+          status: z.enum(['pending', 'completed', 'failed'])
+        }))
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { sceneVideos } = validationResult.data;
+      
+      const updated = await storage.updateProject(id, userId, {
+        sceneVideos: JSON.stringify(sceneVideos)
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: "Project not found or access denied" });
+      }
+
+      res.json({ success: true, project: updated });
+    } catch (error) {
+      console.error("Error updating scene videos:", error);
+      res.status(500).json({ 
+        error: "Failed to update scene videos",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

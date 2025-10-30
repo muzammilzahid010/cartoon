@@ -117,6 +117,7 @@ export const projects = pgTable("projects", {
   script: text("script").notNull(),
   characters: text("characters").notNull(), // JSON string of Character[]
   scenes: text("scenes").notNull(), // JSON string of Scene[]
+  sceneVideos: text("scene_videos"), // JSON string of { sceneNumber: number, videoUrl: string, status: 'pending' | 'completed' | 'failed' }[]
   mergedVideoUrl: text("merged_video_url"),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
   updatedAt: text("updated_at").notNull().default(sql`now()::text`),
