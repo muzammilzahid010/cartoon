@@ -6,6 +6,9 @@ This is a web application that transforms written cartoon scripts into detailed 
 
 The application follows a Disney Pixar-style 3D animation aesthetic and provides a multi-step wizard interface for creating, generating, and exporting scene descriptions.
 
+**Additional Features:**
+- **VEO 3.1 Video Generator**: Standalone tool accessible via hamburger menu that allows direct video generation from text prompts with landscape/portrait aspect ratio selection.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -46,8 +49,10 @@ Preferred communication style: Simple, everyday language.
 - Authentication endpoints: `POST /api/login`, `POST /api/logout`, `GET /api/session`
 - User management endpoints: `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id/plan`, `PATCH /api/users/:id/token` (admin only)
 - Scene generation endpoint: `POST /api/generate-scenes`
-- Video generation endpoints: `POST /api/generate-video`, `POST /api/generate-all-videos`
+- Video generation endpoints: `POST /api/generate-video`, `POST /api/generate-all-videos`, `POST /api/generate-veo-video` (direct VEO video generation)
+- Video status endpoint: `POST /api/check-video-status`
 - Video merging endpoint: `POST /api/merge-videos`
+- Token rotation endpoints: `GET /api/token-rotation/tokens`, `POST /api/token-rotation/tokens`, `PATCH /api/token-rotation/tokens/:id`, `DELETE /api/token-rotation/tokens/:id`, `POST /api/token-rotation/tokens/bulk-replace` (admin only)
 - Request validation using Zod schemas shared between client and server
 - Error handling with appropriate HTTP status codes
 - Session-based authentication with express-session and MemoryStore
