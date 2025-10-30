@@ -145,7 +145,7 @@ Preferred communication style: Simple, everyday language.
 - Replit-specific plugins for development banner, error overlay, and cartographer
 - Vite for fast development and optimized production builds
 - ESBuild for server-side bundling
-- FFmpeg for video merging and processing
+- FFmpeg (installed as system dependency) for video merging and processing in both development and production
 
 **Authentication**: Basic session management infrastructure present but not actively used
 
