@@ -172,11 +172,14 @@ Preferred communication style: Simple, everyday language.
 1. **Landing (Step 0)**: Hero page with call-to-action to start creating
    - Header shows Login button if not authenticated
    - Header shows username, Admin button (if admin), and Logout button if authenticated
-   - Hamburger menu provides access to VEO 3.1 Generator and Video History
-2. **Input (Step 1)**: Multi-character form with script textarea and dynamic character inputs
+   - Hamburger menu provides access to VEO 3.1 Generator, Video History, and My Projects
+2. **Input (Step 1)**: Multi-character form with optional project title, script textarea and dynamic character inputs
+   - **Auto-Save Feature**: Every cartoon generation is automatically saved as a project
+   - Project title is optional - defaults to "Cartoon Story - [date]" if not provided
 3. **Scene Generation (Step 2)**: Loading state with animated feedback while AI generates scenes
    - Automatic retry logic handles failures transparently
    - Validates scene count and quality
+   - **Auto-Save**: Project is saved to database upon successful scene generation
    - **Error Handling**: If scene generation fails, displays error message with "Try Again" and "Start Over" buttons
    - Retry preserves original story input and characters
 4. **Review Scenes (Step 3)**: Grid display of generated scenes with structured information cards
@@ -215,3 +218,24 @@ Preferred communication style: Simple, everyday language.
   - Updates to "completed" with video URL on success
   - Updates to "failed" on errors or timeouts
 - Enum validation ensures data integrity (status and aspectRatio constrained to valid values)
+
+**My Projects Page (`/projects`):**
+- Complete project management system for cartoon story generations
+- **Projects List**: Grid view of all user's cartoon projects showing:
+  - Project title
+  - Creation date
+  - Number of scenes generated
+  - Number of characters
+  - Video generation status (if videos were created)
+  - Delete button with confirmation dialog
+- **Project Detail Page (`/projects/:id`)**: Full project view displaying:
+  - Complete story script
+  - All characters with descriptions
+  - All generated scenes using SceneCard component
+  - Navigation back to projects list and home
+- **Auto-Save Integration**: 
+  - Every scene generation automatically creates a project
+  - Projects saved immediately after successful AI generation
+  - Users can provide custom title or use auto-generated default
+- **Security**: All projects are user-scoped with authentication required
+- **Navigation**: Accessible via hamburger menu "My Projects" link
