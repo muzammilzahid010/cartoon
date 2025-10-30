@@ -65,28 +65,36 @@ export default function Admin() {
     user?: { id: string; username: string; isAdmin: boolean };
   }>({
     queryKey: ["/api/session"],
-    refetchOnMount: "always",
-    refetchOnWindowFocus: false,
-    staleTime: 0,
   });
+
+  // Debug logging
+  console.log("Admin page - Session data:", session);
+  console.log("Admin page - Is loading:", isLoadingSession);
+
+  const isAdmin = session?.authenticated && session?.user?.isAdmin;
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery<{ users: UserData[] }>({
     queryKey: ["/api/users"],
-    enabled: !isLoadingSession && session?.authenticated === true && session?.user?.isAdmin === true,
+    enabled: isAdmin === true,
   });
 
   useEffect(() => {
-    // Only redirect if we have confirmed session data showing user is NOT admin
-    // Don't redirect while loading or if session data hasn't loaded yet
-    if (!isLoadingSession && session !== undefined) {
-      if (session.authenticated === false || session.user?.isAdmin === false) {
-        toast({
-          variant: "destructive",
-          title: "Access denied",
-          description: "You must be an admin to access this page",
-        });
-        setLocation("/login");
-      }
+    console.log("Admin useEffect - isLoadingSession:", isLoadingSession, "session:", session);
+    
+    // Wait for session to load first
+    if (isLoadingSession) return;
+    
+    // Check if not authenticated or not admin
+    if (!session?.authenticated || !session?.user?.isAdmin) {
+      console.log("Admin access denied - redirecting to login");
+      toast({
+        variant: "destructive",
+        title: "Access denied",
+        description: "You must be an admin to access this page",
+      });
+      setLocation("/login");
+    } else {
+      console.log("Admin access granted");
     }
   }, [session, isLoadingSession, setLocation, toast]);
 
