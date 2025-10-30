@@ -12,7 +12,7 @@ import ScenesDisplay from "@/components/ScenesDisplay";
 import VideoGenerationProgress from "@/components/VideoGenerationProgress";
 import VideosDisplay from "@/components/VideosDisplay";
 import type { StoryInput, Scene } from "@shared/schema";
-import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon } from "lucide-react";
+import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -449,6 +449,12 @@ export default function Home() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
+                <Link href="/projects">
+                  <DropdownMenuItem data-testid="menu-projects">
+                    <Film className="w-4 h-4 mr-2" />
+                    My Projects
+                  </DropdownMenuItem>
+                </Link>
                 <Link href="/veo-generator">
                   <DropdownMenuItem data-testid="menu-veo-generator">
                     <PlayCircle className="w-4 h-4 mr-2" />
@@ -458,7 +464,7 @@ export default function Home() {
                 <Link href="/history">
                   <DropdownMenuItem data-testid="menu-history">
                     <HistoryIcon className="w-4 h-4 mr-2" />
-                    History
+                    Video History
                   </DropdownMenuItem>
                 </Link>
               </DropdownMenuContent>

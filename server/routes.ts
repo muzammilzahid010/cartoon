@@ -1030,6 +1030,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Project endpoints
+  app.get("/api/projects", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const projects = await storage.getUserProjects(userId);
+      res.json({ projects });
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch projects",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/projects/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { id } = req.params;
+      const project = await storage.getProject(id, userId);
+
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      res.json({ project });
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch project",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/projects", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        title: z.string().min(1, "Title is required"),
+        script: z.string().min(50, "Script must be at least 50 characters"),
+        characters: z.string(), // JSON string
+        scenes: z.string(), // JSON string
+        mergedVideoUrl: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const project = await storage.createProject({
+        userId,
+        ...validationResult.data
+      });
+
+      res.json({ project });
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(500).json({ 
+        error: "Failed to create project",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.patch("/api/projects/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { id } = req.params;
+
+      const schema = z.object({
+        title: z.string().min(1).optional(),
+        mergedVideoUrl: z.string().optional(),
+        scenes: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const updated = await storage.updateProject(id, userId, validationResult.data);
+
+      if (!updated) {
+        return res.status(404).json({ error: "Project not found or access denied" });
+      }
+
+      res.json({ project: updated });
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ 
+        error: "Failed to update project",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteProject(id, userId);
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Project not found or access denied" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ 
+        error: "Failed to delete project",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -108,10 +108,33 @@ export const sceneSchema = z.object({
 
 export type Scene = z.infer<typeof sceneSchema>;
 
+// Projects schema for storing cartoon story generations
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  script: text("script").notNull(),
+  characters: text("characters").notNull(), // JSON string of Character[]
+  scenes: text("scenes").notNull(), // JSON string of Scene[]
+  mergedVideoUrl: text("merged_video_url"),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
+  updatedAt: text("updated_at").notNull().default(sql`now()::text`),
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+
 // Video history schema for storing generated videos
 export const videoHistory = pgTable("video_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
   prompt: text("prompt").notNull(),
   aspectRatio: text("aspect_ratio").notNull(),
   videoUrl: text("video_url"),

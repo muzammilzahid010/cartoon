@@ -8,6 +8,8 @@ import Login from "@/pages/Login";
 import Admin from "@/pages/Admin";
 import VeoGenerator from "@/pages/VeoGenerator";
 import History from "@/pages/History";
+import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/veo-generator" component={VeoGenerator} />
       <Route path="/history" component={History} />
+      <Route path="/projects" component={Projects} />
+      <Route path="/projects/:id" component={ProjectDetail} />
       <Route component={NotFound} />
     </Switch>
   );
