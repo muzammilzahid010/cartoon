@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Home, Loader2, Download, PlayCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 type AspectRatio = "landscape" | "portrait";
 
@@ -17,6 +18,26 @@ export default function VeoGenerator() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const { data: session, isLoading: sessionLoading } = useQuery<{
+    authenticated: boolean;
+    user?: { id: string; username: string; isAdmin: boolean };
+  }>({
+    queryKey: ["/api/session"],
+  });
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!sessionLoading && session && !session.authenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to generate videos.",
+        variant: "destructive",
+      });
+      setLocation("/login");
+    }
+  }, [session, sessionLoading, setLocation, toast]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {

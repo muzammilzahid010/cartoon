@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import Hero from "@/components/Hero";
 import ProgressStepper from "@/components/ProgressStepper";
 import ScriptForm from "@/components/ScriptForm";
@@ -56,13 +56,26 @@ export default function Home() {
   const [sceneGenerationError, setSceneGenerationError] = useState<string | null>(null);
   const { toast } = useToast();
   const abortControllersRef = useRef<Map<number, AbortController>>(new Map());
+  const [, setLocation] = useLocation();
 
-  const { data: session } = useQuery<{
+  const { data: session, isLoading: sessionLoading } = useQuery<{
     authenticated: boolean;
     user?: { id: string; username: string; isAdmin: boolean };
   }>({
     queryKey: ["/api/session"],
   });
+
+  // Redirect to login if not authenticated and trying to create content
+  useEffect(() => {
+    if (!sessionLoading && session && !session.authenticated && currentStep > 0) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to create videos and cartoons.",
+        variant: "destructive",
+      });
+      setLocation("/login");
+    }
+  }, [session, sessionLoading, currentStep, setLocation, toast]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -115,6 +128,15 @@ export default function Home() {
   });
 
   const handleGetStarted = () => {
+    if (!session?.authenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to create videos and cartoons.",
+        variant: "destructive",
+      });
+      setLocation("/login");
+      return;
+    }
     setCurrentStep(1);
   };
 

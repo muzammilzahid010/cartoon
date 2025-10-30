@@ -1,14 +1,39 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Home, Download, Calendar, Film, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { VideoHistory } from "@shared/schema";
 
 export default function History() {
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const { data: session, isLoading: sessionLoading } = useQuery<{
+    authenticated: boolean;
+    user?: { id: string; username: string; isAdmin: boolean };
+  }>({
+    queryKey: ["/api/session"],
+  });
+
   const { data, isLoading } = useQuery<{ videos: VideoHistory[] }>({
     queryKey: ["/api/video-history"],
+    enabled: session?.authenticated === true,
   });
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!sessionLoading && session && !session.authenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to view your video history.",
+        variant: "destructive",
+      });
+      setLocation("/login");
+    }
+  }, [session, sessionLoading, setLocation, toast]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
