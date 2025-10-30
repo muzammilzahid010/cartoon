@@ -50,6 +50,7 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
   const [storyInput, setStoryInput] = useState<StoryInput | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [videoProgress, setVideoProgress] = useState<VideoProgress[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [currentVideoScene, setCurrentVideoScene] = useState(0);
@@ -104,10 +105,11 @@ export default function Home() {
     mutationFn: async (data: StoryInput) => {
       const response = await apiRequest("POST", "/api/generate-scenes", data);
       const result = await response.json();
-      return result as { scenes: Scene[] };
+      return result as { scenes: Scene[]; projectId: string };
     },
     onSuccess: (data) => {
       setScenes(data.scenes);
+      setCurrentProjectId(data.projectId);
       setSceneGenerationError(null);
       setCurrentStep(3);
       toast({
@@ -626,6 +628,7 @@ export default function Home() {
           {currentStep === 5 && (
             <VideosDisplay 
               videos={generatedVideos}
+              projectId={currentProjectId}
               onStartNew={handleStartNew}
               onRetryVideo={handleRetryVideo}
               onRetryAllFailed={handleRetryAllFailed}

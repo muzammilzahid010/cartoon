@@ -15,12 +15,13 @@ interface GeneratedVideo {
 
 interface VideosDisplayProps {
   videos: GeneratedVideo[];
+  projectId: string | null;
   onStartNew: () => void;
   onRetryVideo: (sceneNumber: number) => Promise<void>;
   onRetryAllFailed: () => Promise<void>;
 }
 
-export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetryAllFailed }: VideosDisplayProps) {
+export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVideo, onRetryAllFailed }: VideosDisplayProps) {
   const [retryingScenes, setRetryingScenes] = useState<Set<number>>(new Set());
   const [retryingAll, setRetryingAll] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -93,12 +94,20 @@ export default function VideosDisplay({ videos, onStartNew, onRetryVideo, onRetr
 
       setMergingStatus('Executed - Processing videos...');
       
+      // Only include projectId in payload if it exists
+      const payload: { videos: typeof videosToMerge; projectId?: string } = {
+        videos: videosToMerge
+      };
+      if (projectId) {
+        payload.projectId = projectId;
+      }
+      
       const response = await fetch('/api/merge-videos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ videos: videosToMerge }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {

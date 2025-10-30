@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Home, ArrowLeft } from "lucide-react";
+import { Loader2, Home, ArrowLeft, Download } from "lucide-react";
 import type { Project, Character, Scene } from "@shared/schema";
 import SceneCard from "@/components/SceneCard";
 
@@ -96,6 +96,42 @@ export default function ProjectDetail() {
               ))}
             </CardContent>
           </Card>
+
+          {project.mergedVideoUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Merged Video</CardTitle>
+                <CardDescription>The complete story video combining all scenes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full">
+                  <video 
+                    controls 
+                    className="w-full rounded-lg shadow-lg"
+                    data-testid="video-merged"
+                  >
+                    <source src={project.mergedVideoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <Button
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = project.mergedVideoUrl!;
+                        link.download = `${project.title}-merged.mp4`;
+                        link.click();
+                      }}
+                      data-testid="button-download-merged"
+                      className="w-full sm:w-auto"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Merged Video
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div>
             <h2 className="text-2xl font-bold mb-4">Generated Scenes ({scenes.length})</h2>

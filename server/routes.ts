@@ -983,13 +983,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merge all videos into one
-  app.post("/api/merge-videos", async (req, res) => {
+  app.post("/api/merge-videos", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
         videos: z.array(z.object({
           sceneNumber: z.number(),
           videoUrl: z.string()
-        }))
+        })),
+        projectId: z.string().optional()
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -1001,7 +1002,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { videos } = validationResult.data;
+      const { videos, projectId } = validationResult.data;
+      const userId = req.session.userId!;
 
       if (videos.length === 0) {
         return res.status(400).json({ 
@@ -1028,6 +1030,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[Merge Videos] Cleaning up temporary files in: ${tempDir}`);
       await rm(tempDir, { recursive: true, force: true });
       console.log(`[Merge Videos] Cleanup complete`);
+
+      // Save merged video URL to project if projectId provided
+      if (projectId) {
+        console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
+        await storage.updateProject(projectId, userId, { mergedVideoUrl: cloudinaryUrl });
+        console.log(`[Merge Videos] Project updated successfully`);
+      }
 
       res.json({ 
         success: true,
