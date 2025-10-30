@@ -194,32 +194,32 @@ export default function VeoGenerator() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">VEO 3.1 Video Generator</h1>
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex justify-between items-center">
+          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white truncate">VEO 3.1 Video Generator</h1>
           <Link href="/">
             <Button variant="outline" size="sm" data-testid="link-home">
-              <Home className="w-4 h-4 mr-1" />
-              Home
+              <Home className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Home</span>
             </Button>
           </Link>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PlayCircle className="w-6 h-6" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
+              <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6" />
               Generate VEO 3.1 Video
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm sm:text-base">
               Create stunning videos using Google's VEO 3.1 model. Choose your aspect ratio and describe what you want to see.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
             <div className="space-y-2">
-              <Label htmlFor="prompt">Video Prompt</Label>
+              <Label htmlFor="prompt" className="text-sm sm:text-base">Video Prompt</Label>
               <Textarea
                 id="prompt"
                 placeholder="Describe the video you want to generate... (e.g., A serene sunset over a calm ocean with gentle waves)"
@@ -228,43 +228,46 @@ export default function VeoGenerator() {
                 rows={5}
                 disabled={isGenerating}
                 data-testid="textarea-prompt"
-                className="resize-none"
+                className="resize-none text-sm sm:text-base"
               />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Be specific and descriptive for best results
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Aspect Ratio</Label>
+              <Label className="text-sm sm:text-base">Aspect Ratio</Label>
               <RadioGroup
                 value={aspectRatio}
                 onValueChange={(value) => setAspectRatio(value as AspectRatio)}
                 disabled={isGenerating}
+                className="space-y-3"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="landscape" id="landscape" data-testid="radio-landscape" />
-                  <Label htmlFor="landscape" className="font-normal cursor-pointer">
-                    Landscape (16:9) - Best for YouTube, presentations
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="landscape" id="landscape" data-testid="radio-landscape" className="mt-0.5" />
+                  <Label htmlFor="landscape" className="font-normal cursor-pointer text-sm sm:text-base leading-snug">
+                    <span className="font-medium">Landscape (16:9)</span>
+                    <span className="hidden sm:inline"> - Best for YouTube, presentations</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="portrait" id="portrait" data-testid="radio-portrait" />
-                  <Label htmlFor="portrait" className="font-normal cursor-pointer">
-                    Portrait (9:16) - Best for TikTok, Instagram Reels, Stories
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="portrait" id="portrait" data-testid="radio-portrait" className="mt-0.5" />
+                  <Label htmlFor="portrait" className="font-normal cursor-pointer text-sm sm:text-base leading-snug">
+                    <span className="font-medium">Portrait (9:16)</span>
+                    <span className="hidden sm:inline"> - Best for TikTok, Instagram Reels, Stories</span>
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <div className="p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-red-800 dark:text-red-200 text-xs sm:text-sm">{error}</p>
               </div>
             )}
 
             {videoUrl && (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="aspect-video bg-black rounded-lg overflow-hidden">
                   <video
                     src={videoUrl}
@@ -277,7 +280,7 @@ export default function VeoGenerator() {
                 </div>
                 <Button
                   onClick={handleDownload}
-                  className="w-full"
+                  className="w-full text-sm sm:text-base"
                   data-testid="button-download"
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -289,7 +292,7 @@ export default function VeoGenerator() {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
-              className="w-full"
+              className="w-full text-sm sm:text-base h-11 sm:h-12"
               size="lg"
               data-testid="button-generate"
             >

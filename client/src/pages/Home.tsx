@@ -439,12 +439,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-3 flex-1 min-w-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" data-testid="button-menu">
+                <Button variant="ghost" size="sm" data-testid="button-menu" className="shrink-0">
                   <Menu className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -463,20 +463,23 @@ export default function Home() {
                 </Link>
               </DropdownMenuContent>
             </DropdownMenu>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Cartoon Story Video Generator</h1>
+            <h1 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white truncate">
+              <span className="hidden sm:inline">Cartoon Story Video Generator</span>
+              <span className="sm:hidden">Story Generator</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {session?.authenticated ? (
               <>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                   <User className="w-4 h-4" />
                   <span className="text-gray-900 dark:text-white">{session.user?.username}</span>
                 </div>
                 {session.user?.isAdmin && (
                   <Link href="/admin">
-                    <Button variant="outline" size="sm" data-testid="link-admin" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
-                      <Shield className="w-4 h-4 mr-1" />
-                      Admin
+                    <Button variant="outline" size="sm" data-testid="link-admin" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 hidden sm:inline-flex">
+                      <Shield className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Admin</span>
                     </Button>
                   </Link>
                 )}
@@ -488,15 +491,15 @@ export default function Home() {
                   data-testid="button-header-logout"
                   className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
-                  <LogOut className="w-4 h-4 mr-1" />
-                  Logout
+                  <LogOut className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Logout</span>
                 </Button>
               </>
             ) : (
               <Link href="/login">
                 <Button variant="outline" size="sm" data-testid="link-login" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
-                  <LogIn className="w-4 h-4 mr-1" />
-                  Login
+                  <LogIn className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Login</span>
                 </Button>
               </Link>
             )}
