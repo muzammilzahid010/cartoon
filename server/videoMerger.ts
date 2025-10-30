@@ -1,5 +1,6 @@
 // Video merger utility using FFmpeg
-// Downloads videos from Cloudinary URLs, merges them sequentially, and uploads result
+// Downloads videos from URLs, merges them sequentially into a local temporary file
+// Note: The merged file should be uploaded to Cloudinary by the caller for persistent storage
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -72,11 +73,10 @@ export async function mergeVideos(videos: VideoToMerge[]): Promise<string> {
       throw new Error(`FFmpeg failed: ${ffmpegError.message}`);
     }
 
-    // Step 4: Return the local merged video file path (no Cloudinary upload)
+    // Step 4: Return the local merged video file path
     console.log(`[Video Merger] Merge complete, returning local file path`);
     
-    // Note: We're not cleaning up the temp directory so the file remains accessible
-    // The file path will be returned directly for local access
+    // Note: Caller is responsible for uploading to Cloudinary and cleaning up temp files
     return outputFile;
   } catch (error) {
     console.error(`[Video Merger] Error during merge process:`, error);

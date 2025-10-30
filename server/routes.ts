@@ -19,13 +19,11 @@ import { mergeVideos } from "./videoMerger";
 import { z } from "zod";
 import path from "path";
 import { existsSync } from "fs";
+import { rm } from "fs/promises";
 
 // Cache to store Cloudinary URL promises by sceneId to avoid re-uploading
 // Using promises allows concurrent requests to await the same upload
 const cloudinaryUploadCache = new Map<string, Promise<string>>();
-
-// Cache to store merged video file paths by unique ID
-const mergedVideoCache = new Map<string, string>();
 
 // Authentication middleware
 const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
@@ -1006,19 +1004,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Merge videos and get local file path
       const mergedVideoPath = await mergeVideos(sortedVideos);
+      console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
 
-      // Generate a unique ID for this merged video
-      const mergeId = path.basename(path.dirname(mergedVideoPath));
-      
-      // Cache the file path for serving
-      mergedVideoCache.set(mergeId, mergedVideoPath);
-      
-      // Return a local URL path that will be served by Express
-      const mergedVideoUrl = `/api/merged-videos/${mergeId}`;
+      // Upload merged video to Cloudinary for persistent storage
+      console.log(`[Merge Videos] Uploading merged video to Cloudinary...`);
+      const cloudinaryUrl = await uploadVideoToCloudinary(mergedVideoPath);
+      console.log(`[Merge Videos] Upload successful! Cloudinary URL: ${cloudinaryUrl}`);
+
+      // Clean up temporary directory after successful upload
+      const tempDir = path.dirname(mergedVideoPath);
+      console.log(`[Merge Videos] Cleaning up temporary files in: ${tempDir}`);
+      await rm(tempDir, { recursive: true, force: true });
+      console.log(`[Merge Videos] Cleanup complete`);
 
       res.json({ 
         success: true,
-        mergedVideoUrl
+        mergedVideoUrl: cloudinaryUrl
       });
     } catch (error) {
       console.error("Error in /api/merge-videos:", error);
@@ -1027,18 +1028,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
-  });
-
-  // Serve merged video files
-  app.get("/api/merged-videos/:mergeId", (req, res) => {
-    const mergeId = req.params.mergeId;
-    const filePath = mergedVideoCache.get(mergeId);
-    
-    if (!filePath || !existsSync(filePath)) {
-      return res.status(404).json({ error: "Video file not found" });
-    }
-    
-    res.sendFile(filePath);
   });
 
   const httpServer = createServer(app);
