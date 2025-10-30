@@ -224,6 +224,7 @@ export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVi
           </div>
           <div className="relative aspect-video bg-black">
             <video
+              key={mergedVideoUrl}
               controls
               className="w-full h-full"
               data-testid="merged-video-player"
@@ -295,6 +296,7 @@ export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVi
             {video.videoUrl ? (
               <div className="relative aspect-video bg-black">
                 <video
+                  key={video.videoUrl}
                   controls
                   className="w-full h-full"
                   data-testid={`video-player-${video.sceneNumber}`}

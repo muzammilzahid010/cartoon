@@ -106,6 +106,7 @@ export default function ProjectDetail() {
               <CardContent>
                 <div className="w-full">
                   <video 
+                    key={project.mergedVideoUrl}
                     controls 
                     className="w-full rounded-lg shadow-lg"
                     data-testid="video-merged"

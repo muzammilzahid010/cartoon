@@ -260,9 +260,11 @@ export default function Home() {
           if (abortController.signal.aborted) break;
           
           // Use functional update to ensure we work with latest state
+          // Add cache-busting timestamp to force browser to reload the new video
+          const cacheBustedUrl = statusData.videoUrl ? `${statusData.videoUrl}${statusData.videoUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined;
           setGeneratedVideos(prev => prev.map(v => 
             v.sceneNumber === sceneNumber 
-              ? { sceneNumber: v.sceneNumber, sceneTitle: v.sceneTitle, status: 'completed', videoUrl: statusData.videoUrl }
+              ? { sceneNumber: v.sceneNumber, sceneTitle: v.sceneTitle, status: 'completed', videoUrl: cacheBustedUrl }
               : v
           ));
           toast({
