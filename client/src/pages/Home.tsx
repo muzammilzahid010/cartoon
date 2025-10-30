@@ -323,6 +323,9 @@ export default function Home() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.substring(6));
+              
+              // Log all SSE updates for debugging
+              console.log('[SSE Received]', data.type, 'Scene:', data.sceneNumber, '-', data.message || data.status);
 
               if (data.type === 'progress') {
                 if (data.current) {

@@ -532,6 +532,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      res.flushHeaders(); // Immediately send headers to establish SSE connection
+
+      // Helper function to send SSE messages with immediate flush
+      const sendSSE = (data: any) => {
+        const message = `data: ${JSON.stringify(data)}\n\n`;
+        res.write(message);
+        console.log('[SSE] Sent:', data.type, 'for scene', data.sceneNumber, '-', data.message || data.status);
+      };
 
       const videos = [];
       const operations: Array<{ operationName: string; sceneId: string; scene: any }> = [];
@@ -542,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           // Send starting update
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'progress', 
             current: i + 1, 
             total: scenes.length,
@@ -550,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'starting',
             message: 'Submitting request to VEO API...',
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
 
           // Start video generation with character context
           const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, apiKey, characters);
@@ -558,7 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           operations.push({ operationName, sceneId, scene });
 
           // Send request sent update
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'progress', 
             current: i + 1, 
             total: scenes.length,
@@ -566,7 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'pending',
             message: 'Request submitted, queued for processing...',
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
 
           // 3 second delay to avoid rate limits (unless it's the last scene)
           if (i < scenes.length - 1) {
@@ -583,25 +592,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'failed'
           });
 
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'error', 
             sceneNumber: scene.scene,
             error: error instanceof Error ? error.message : "Unknown error",
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
         }
       }
 
       // STEP 2: Now poll for completion of all started operations
       for (const op of operations) {
         try {
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'progress', 
             sceneNumber: op.scene.scene,
             status: 'generating',
             message: 'VEO is generating your video...',
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
 
           // Wait for completion with periodic status updates
           const result = await waitForVideoCompletionWithUpdates(
@@ -610,24 +619,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             apiKey,
             (status: string) => {
               // Send periodic status updates during polling
-              res.write(`data: ${JSON.stringify({ 
+              sendSSE({ 
                 type: 'progress', 
                 sceneNumber: op.scene.scene,
                 status: 'generating',
                 message: status,
                 timestamp: new Date().toISOString()
-              })}\n\n`);
+              });
             }
           );
 
           // Send uploading status
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'progress', 
             sceneNumber: op.scene.scene,
             status: 'generating',
             message: 'Uploading to Cloudinary...',
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
 
           // Upload video to Cloudinary for easy download
           console.log(`[Video Gen] Uploading scene ${op.scene.scene} to Cloudinary...`);
@@ -648,12 +657,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Send completed update
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'video_complete', 
             sceneNumber: op.scene.scene,
             videoUrl: finalVideoUrl,
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
 
         } catch (error) {
           console.error(`Error waiting for video completion for scene ${op.scene.scene}:`, error);
@@ -665,20 +674,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'failed'
           });
 
-          res.write(`data: ${JSON.stringify({ 
+          sendSSE({ 
             type: 'error', 
             sceneNumber: op.scene.scene,
             error: error instanceof Error ? error.message : "Unknown error",
             timestamp: new Date().toISOString()
-          })}\n\n`);
+          });
         }
       }
 
       // Send final result
-      res.write(`data: ${JSON.stringify({ 
+      sendSSE({ 
         type: 'complete', 
         videos 
-      })}\n\n`);
+      });
 
       res.end();
 
