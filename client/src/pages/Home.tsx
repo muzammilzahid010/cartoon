@@ -250,6 +250,7 @@ export default function Home() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({ operationName, sceneId }),
           signal: abortController.signal,
         });
@@ -416,6 +417,7 @@ export default function Home() {
                       headers: {
                         'Content-Type': 'application/json',
                       },
+                      credentials: 'include',
                       body: JSON.stringify({
                         prompt: sceneData?.description || 'Scene video',
                         aspectRatio: 'landscape',

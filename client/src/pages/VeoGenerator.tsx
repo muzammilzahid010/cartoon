@@ -63,6 +63,7 @@ export default function VeoGenerator() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             userId: '', // Will be set by backend
             prompt,
@@ -87,6 +88,7 @@ export default function VeoGenerator() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ prompt, aspectRatio }),
       });
 
@@ -112,6 +114,7 @@ export default function VeoGenerator() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({ operationName, sceneId }),
         });
 
@@ -131,6 +134,7 @@ export default function VeoGenerator() {
                 headers: {
                   'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                   status: 'completed',
                   videoUrl: statusData.videoUrl,
@@ -167,6 +171,7 @@ export default function VeoGenerator() {
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
               status: 'failed',
             }),

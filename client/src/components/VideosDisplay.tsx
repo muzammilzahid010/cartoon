@@ -107,6 +107,7 @@ export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVi
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
