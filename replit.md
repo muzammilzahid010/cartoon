@@ -137,12 +137,6 @@ Preferred communication style: Simple, everyday language.
   - UI-level duplicate request prevention
   - Functional state updates to prevent race conditions
 
-**Video Storage**: Google Drive API
-- Handles large merged video uploads (no size limit, unlike Cloudinary's 100MB cap)
-- Automatic public sharing for download access
-- Service account authentication via JSON credentials
-- Direct download links for video playback
-
 **Database**: 
 - Neon PostgreSQL (via `@neondatabase/serverless`)
 - Drizzle ORM for schema management and migrations
@@ -160,7 +154,8 @@ Preferred communication style: Simple, everyday language.
 - `GEMINI_API_KEY` - Google Gemini API authentication
 - `VEO3_API_KEY` - VEO 3 API authentication for video generation
 - `VEO3_PROJECT_ID` - VEO 3 project identifier (optional, extracted from API response)
-- `GOOGLE_DRIVE_CREDENTIALS` - Google Drive service account JSON credentials for large video uploads
+- `CLOUDINARY_API_KEY` - Cloudinary API key for video storage
+- `CLOUDINARY_API_SECRET` - Cloudinary API secret
 - `DATABASE_URL` - PostgreSQL connection string
 
 ### Application Flow

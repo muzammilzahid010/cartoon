@@ -1020,13 +1020,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mergedVideoPath = await mergeVideos(sortedVideos);
       console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
 
-      // Upload merged video to Google Drive for persistent storage (handles large files)
-      console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
-      const { uploadVideoToGoogleDrive, getDirectDownloadLink } = await import('./googleDrive');
-      const fileName = `merged-video-${Date.now()}.mp4`;
-      const driveResult = await uploadVideoToGoogleDrive(mergedVideoPath, fileName);
-      const downloadUrl = getDirectDownloadLink(driveResult.id);
-      console.log(`[Merge Videos] Upload successful! Google Drive URL: ${downloadUrl}`);
+      // Upload merged video to Cloudinary for persistent storage
+      console.log(`[Merge Videos] Uploading merged video to Cloudinary...`);
+      const downloadUrl = await uploadVideoToCloudinary(mergedVideoPath);
+      console.log(`[Merge Videos] Upload successful! Cloudinary URL: ${downloadUrl}`);
 
       // Clean up temporary directory after successful upload
       const tempDir = path.dirname(mergedVideoPath);
