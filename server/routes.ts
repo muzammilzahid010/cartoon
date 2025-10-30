@@ -1022,7 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Upload merged video to Google Drive for persistent storage (handles large files)
       console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
-      const { uploadVideoToGoogleDrive, getDirectDownloadLink } = await import('./googleDrive.js');
+      const { uploadVideoToGoogleDrive, getDirectDownloadLink } = await import('./googleDrive');
       const fileName = `merged-video-${Date.now()}.mp4`;
       const driveResult = await uploadVideoToGoogleDrive(mergedVideoPath, fileName);
       const downloadUrl = getDirectDownloadLink(driveResult.id);

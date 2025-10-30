@@ -79,16 +79,18 @@ function cleanPrompt(prompt: string): string {
 
 // Parse scene description to get the full prompt text
 function getScenePrompt(scene: Scene, characters?: Array<{ name: string; description: string }>): string {
-  let fullText = '';
+  // Disney Pixar style prefix for all prompts
+  const stylePrefix = "In this vibrant and colourful scene, in the style of Disney Pixar's 3D animation,";
+  let fullText = stylePrefix;
   
   // Prepend character details if provided
   if (characters && characters.length > 0) {
     const characterDescriptions = characters
       .map(char => `${char.name}: ${char.description}`)
       .join('. ');
-    fullText = `Characters: ${characterDescriptions}. Scene: ${scene.title}. ${scene.description}`;
+    fullText += ` Characters: ${characterDescriptions}. Scene: ${scene.title}. ${scene.description}`;
   } else {
-    fullText = `${scene.title}. ${scene.description}`;
+    fullText += ` ${scene.title}. ${scene.description}`;
   }
   
   return cleanPrompt(fullText);

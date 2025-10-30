@@ -124,6 +124,7 @@ Preferred communication style: Simple, everyday language.
 
 **Video Generation**: VEO 3 API
 - Integration for generating cartoon-style videos from scene prompts
+- **Disney Pixar Style**: All prompts automatically prefixed with "In this vibrant and colourful scene, in the style of Disney Pixar's 3D animation,"
 - Sequential processing of scenes with real-time progress tracking
 - Server-Sent Events (SSE) for streaming progress updates
 - Automatic prompt cleaning (removes special characters: " * , : ; _ -)
@@ -136,10 +137,16 @@ Preferred communication style: Simple, everyday language.
   - UI-level duplicate request prevention
   - Functional state updates to prevent race conditions
 
+**Video Storage**: Google Drive API
+- Handles large merged video uploads (no size limit, unlike Cloudinary's 100MB cap)
+- Automatic public sharing for download access
+- Service account authentication via JSON credentials
+- Direct download links for video playback
+
 **Database**: 
 - Neon PostgreSQL (via `@neondatabase/serverless`)
 - Drizzle ORM for schema management and migrations
-- Connection configured but storage currently in-memory
+- PostgreSQL database used for all user data and project persistence
 
 **Development Tools**:
 - Replit-specific plugins for development banner, error overlay, and cartographer
@@ -153,7 +160,8 @@ Preferred communication style: Simple, everyday language.
 - `GEMINI_API_KEY` - Google Gemini API authentication
 - `VEO3_API_KEY` - VEO 3 API authentication for video generation
 - `VEO3_PROJECT_ID` - VEO 3 project identifier (optional, extracted from API response)
-- `DATABASE_URL` - PostgreSQL connection string (configured but optional for current in-memory operation)
+- `GOOGLE_DRIVE_CREDENTIALS` - Google Drive service account JSON credentials for large video uploads
+- `DATABASE_URL` - PostgreSQL connection string
 
 ### Application Flow
 
