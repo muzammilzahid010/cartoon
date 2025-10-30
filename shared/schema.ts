@@ -66,6 +66,10 @@ export const insertApiTokenSchema = createInsertSchema(apiTokens).pick({
   label: true,
 });
 
+export const bulkReplaceTokensSchema = z.object({
+  tokens: z.string().min(1, "Please enter at least one token"),
+});
+
 export const updateTokenSettingsSchema = z.object({
   rotationEnabled: z.boolean(),
   rotationIntervalMinutes: z.string(),
@@ -74,6 +78,7 @@ export const updateTokenSettingsSchema = z.object({
 
 export type ApiToken = typeof apiTokens.$inferSelect;
 export type InsertApiToken = z.infer<typeof insertApiTokenSchema>;
+export type BulkReplaceTokens = z.infer<typeof bulkReplaceTokensSchema>;
 export type TokenSettings = typeof tokenSettings.$inferSelect;
 export type UpdateTokenSettings = z.infer<typeof updateTokenSettingsSchema>;
 

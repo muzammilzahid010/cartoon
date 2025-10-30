@@ -8,6 +8,7 @@ import {
   updateUserPlanSchema, 
   updateUserApiTokenSchema, 
   insertApiTokenSchema,
+  bulkReplaceTokensSchema,
   updateTokenSettingsSchema,
   type Scene 
 } from "@shared/schema";
@@ -339,6 +340,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in PUT /api/token-settings:", error);
       res.status(500).json({ error: "Failed to update token settings" });
+    }
+  });
+
+  // Bulk replace all tokens (admin only)
+  app.post("/api/tokens/bulk-replace", requireAdmin, async (req, res) => {
+    try {
+      const validationResult = bulkReplaceTokensSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      // Parse tokens from textarea (one per line)
+      const tokensText = validationResult.data.tokens.trim();
+      const tokenLines = tokensText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => {
+          // Remove "Bearer " prefix if present
+          return line.replace(/^Bearer\s+/i, '');
+        });
+
+      if (tokenLines.length === 0) {
+        return res.status(400).json({ 
+          error: "No valid tokens found",
+          details: ["Please enter at least one token"] 
+        });
+      }
+
+      const newTokens = await storage.replaceAllTokens(tokenLines);
+      res.json({ success: true, tokens: newTokens, count: newTokens.length });
+    } catch (error) {
+      console.error("Error in POST /api/tokens/bulk-replace:", error);
+      res.status(500).json({ error: "Failed to replace tokens" });
     }
   });
 

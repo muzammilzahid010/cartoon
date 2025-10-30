@@ -51,11 +51,16 @@ const tokenRotationSettingsSchema = z.object({
   maxRequestsPerToken: z.string().min(1, "Max requests is required"),
 });
 
+const bulkReplaceTokensSchema = z.object({
+  tokens: z.string().min(1, "Please enter at least one token"),
+});
+
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdatePlanFormData = z.infer<typeof updatePlanSchema>;
 type UpdateTokenFormData = z.infer<typeof updateTokenSchema>;
 type AddApiTokenFormData = z.infer<typeof addApiTokenSchema>;
 type TokenRotationSettingsFormData = z.infer<typeof tokenRotationSettingsSchema>;
+type BulkReplaceTokensFormData = z.infer<typeof bulkReplaceTokensSchema>;
 
 interface UserData {
   id: string;
@@ -178,6 +183,15 @@ export default function Admin() {
       maxRequestsPerToken: "1000",
     },
   });
+
+  const bulkReplaceForm = useForm<BulkReplaceTokensFormData>({
+    resolver: zodResolver(bulkReplaceTokensSchema),
+    defaultValues: {
+      tokens: "",
+    },
+  });
+
+  const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
 
   const createUserMutation = useMutation({
     mutationFn: async (data: CreateUserFormData) => {
@@ -328,6 +342,30 @@ export default function Admin() {
       toast({
         variant: "destructive",
         title: "Failed to update settings",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const bulkReplaceTokensMutation = useMutation({
+    mutationFn: async (data: BulkReplaceTokensFormData) => {
+      const response = await apiRequest("POST", "/api/tokens/bulk-replace", data);
+      const result = await response.json();
+      return result as { success: boolean; tokens: ApiTokenData[]; count: number };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Tokens replaced successfully",
+        description: `Added ${data.count} new tokens. All previous tokens have been removed.`,
+      });
+      bulkReplaceForm.reset();
+      setShowBulkConfirmation(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to replace tokens",
         description: error.message || "An error occurred",
       });
     },
@@ -864,6 +902,86 @@ export default function Admin() {
                   </Button>
                 </form>
               </Form>
+            </div>
+
+            {/* Bulk Replace Tokens */}
+            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <h3 className="font-semibold mb-2 text-gray-800 dark:text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Bulk Replace All Tokens
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                ⚠️ This will DELETE all existing tokens and replace them with new ones. "Bearer " prefix will be automatically removed.
+              </p>
+              <Form {...bulkReplaceForm}>
+                <form
+                  onSubmit={bulkReplaceForm.handleSubmit((data) => setShowBulkConfirmation(true))}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={bulkReplaceForm.control}
+                    name="tokens"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">
+                          Paste Tokens (one per line)
+                        </FormLabel>
+                        <FormControl>
+                          <textarea
+                            {...field}
+                            rows={6}
+                            placeholder="ya29.a0ARrdaM_example1&#10;Bearer ya29.a0ARrdaM_example2&#10;ya29.a0ARrdaM_example3"
+                            className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm resize-vertical"
+                            data-testid="textarea-bulk-tokens"
+                          />
+                        </FormControl>
+                        <FormMessage className="dark:text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white"
+                    data-testid="button-bulk-replace"
+                  >
+                    Replace All Tokens
+                  </Button>
+                </form>
+              </Form>
+              
+              {/* Confirmation Dialog */}
+              {showBulkConfirmation && (
+                <Dialog open={showBulkConfirmation} onOpenChange={setShowBulkConfirmation}>
+                  <DialogContent className="dark:bg-gray-800">
+                    <DialogHeader>
+                      <DialogTitle className="text-red-600 dark:text-red-400">Confirm Token Replacement</DialogTitle>
+                      <DialogDescription className="dark:text-gray-300">
+                        Are you sure you want to replace ALL existing tokens? This action cannot be undone.
+                        All current tokens will be permanently deleted.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex gap-3 justify-end mt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowBulkConfirmation(false)}
+                        data-testid="button-cancel-bulk"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700"
+                        onClick={() => bulkReplaceTokensMutation.mutate(bulkReplaceForm.getValues())}
+                        disabled={bulkReplaceTokensMutation.isPending}
+                        data-testid="button-confirm-bulk"
+                      >
+                        {bulkReplaceTokensMutation.isPending ? "Replacing..." : "Yes, Replace All"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
             {/* Add New Token */}

@@ -36,6 +36,7 @@ export interface IStorage {
   toggleApiTokenStatus(tokenId: string, isActive: boolean): Promise<ApiToken | undefined>;
   getNextRotationToken(): Promise<ApiToken | undefined>;
   updateTokenUsage(tokenId: string): Promise<void>;
+  replaceAllTokens(tokens: string[]): Promise<ApiToken[]>;
   
   // Token settings
   getTokenSettings(): Promise<TokenSettings | undefined>;
@@ -189,6 +190,36 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(apiTokens.id, tokenId));
     }
+  }
+
+  async replaceAllTokens(tokens: string[]): Promise<ApiToken[]> {
+    // Check for duplicates in input
+    const uniqueTokens = new Set(tokens);
+    if (uniqueTokens.size !== tokens.length) {
+      throw new Error("Duplicate tokens found in input");
+    }
+    
+    // Execute deletion and insertion in a single transaction
+    return await db.transaction(async (tx) => {
+      // Delete all existing tokens
+      await tx.delete(apiTokens);
+      
+      // Add all new tokens with auto-generated labels
+      const newTokens: ApiToken[] = [];
+      for (let i = 0; i < tokens.length; i++) {
+        const [token] = await tx
+          .insert(apiTokens)
+          .values({
+            token: tokens[i],
+            label: `Token ${i + 1}`,
+            isActive: true,
+          })
+          .returning();
+        newTokens.push(token);
+      }
+      
+      return newTokens;
+    });
   }
 
   // Token settings methods
