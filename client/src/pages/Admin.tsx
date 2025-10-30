@@ -76,8 +76,10 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    if (!isLoadingSession && session) {
-      if (!session.authenticated || !session.user?.isAdmin) {
+    // Only redirect if we have confirmed session data showing user is NOT admin
+    // Don't redirect while loading or if session data hasn't loaded yet
+    if (!isLoadingSession && session !== undefined) {
+      if (session.authenticated === false || session.user?.isAdmin === false) {
         toast({
           variant: "destructive",
           title: "Access denied",
