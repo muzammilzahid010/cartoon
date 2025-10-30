@@ -85,7 +85,14 @@ export async function uploadVideoToGoogleDriveOAuth(
 }
 
 export function getDirectDownloadLinkOAuth(fileId: string): string {
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  // Use direct view link for HTML5 video players
+  // This works for public files and allows streaming playback
+  return `https://drive.google.com/uc?export=view&id=${fileId}`;
+}
+
+export function getEmbedLink(fileId: string): string {
+  // For iframe embedding if needed
+  return `https://drive.google.com/file/d/${fileId}/preview`;
 }
 
 export async function generateAuthUrl(): Promise<string> {

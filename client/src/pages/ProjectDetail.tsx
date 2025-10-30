@@ -116,16 +116,37 @@ export default function ProjectDetail() {
                   <div className="mt-4 flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => {
+                        // Extract file ID from Google Drive URL
+                        const url = project.mergedVideoUrl!;
+                        const fileIdMatch = url.match(/id=([^&]+)/);
+                        if (fileIdMatch) {
+                          // Open in Google Drive viewer
+                          window.open(`https://drive.google.com/file/d/${fileIdMatch[1]}/view`, '_blank');
+                        }
+                      }}
+                      data-testid="button-view-drive"
+                      className="w-full sm:w-auto"
+                      variant="default"
+                    >
+                      <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.01 1.485c-.103 0-.216.018-.32.063L1.662 6.946c-.223.095-.329.349-.235.572.095.224.349.329.572.235L12.01 2.621l10.011 5.132c.223.094.477-.011.572-.235.094-.223-.012-.477-.235-.572L12.33 1.548c-.104-.045-.217-.063-.32-.063z"/>
+                        <path d="M22.271 7.337c-.223-.095-.477.012-.572.235-.095.223.012.477.235.572l-.949 8.275c-.094.86-.785 1.511-1.66 1.511H4.675c-.875 0-1.566-.651-1.66-1.511l-.949-8.275c.223-.095.33-.349.235-.572-.095-.223-.349-.329-.572-.235L.33 9.546c-.223.095-.329.349-.235.572l1.089 9.482c.141 1.295 1.187 2.271 2.491 2.271h14.65c1.304 0 2.35-.976 2.491-2.271l1.089-9.482c.094-.223-.012-.477-.235-.572l-1.399-.209z"/>
+                      </svg>
+                      Open in Google Drive
+                    </Button>
+                    <Button
+                      onClick={() => {
                         const link = document.createElement('a');
-                        link.href = project.mergedVideoUrl!;
+                        link.href = project.mergedVideoUrl!.replace('export=view', 'export=download');
                         link.download = `${project.title}-merged.mp4`;
                         link.click();
                       }}
                       data-testid="button-download-merged"
                       className="w-full sm:w-auto"
+                      variant="outline"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      Download Merged Video
+                      Download Video
                     </Button>
                   </div>
                 </div>
