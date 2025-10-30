@@ -1020,10 +1020,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mergedVideoPath = await mergeVideos(sortedVideos);
       console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
 
-      // Upload merged video to Cloudinary for persistent storage
-      console.log(`[Merge Videos] Uploading merged video to Cloudinary...`);
-      const cloudinaryUrl = await uploadVideoToCloudinary(mergedVideoPath);
-      console.log(`[Merge Videos] Upload successful! Cloudinary URL: ${cloudinaryUrl}`);
+      // Upload merged video to Google Drive for persistent storage (handles large files)
+      console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
+      const { uploadVideoToGoogleDrive, getDirectDownloadLink } = await import('./googleDrive.js');
+      const fileName = `merged-video-${Date.now()}.mp4`;
+      const driveResult = await uploadVideoToGoogleDrive(mergedVideoPath, fileName);
+      const downloadUrl = getDirectDownloadLink(driveResult.id);
+      console.log(`[Merge Videos] Upload successful! Google Drive URL: ${downloadUrl}`);
 
       // Clean up temporary directory after successful upload
       const tempDir = path.dirname(mergedVideoPath);
@@ -1034,13 +1037,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save merged video URL to project if projectId provided
       if (projectId) {
         console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
-        await storage.updateProject(projectId, userId, { mergedVideoUrl: cloudinaryUrl });
+        await storage.updateProject(projectId, userId, { mergedVideoUrl: downloadUrl });
         console.log(`[Merge Videos] Project updated successfully`);
       }
 
       res.json({ 
         success: true,
-        mergedVideoUrl: cloudinaryUrl
+        mergedVideoUrl: downloadUrl
       });
     } catch (error) {
       console.error("Error in /api/merge-videos:", error);
