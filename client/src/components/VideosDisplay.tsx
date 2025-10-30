@@ -223,51 +223,22 @@ export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVi
             </div>
           </div>
           <div className="relative aspect-video bg-black">
-            {mergedVideoUrl.includes('drive.google.com') ? (
-              // Use iframe for Google Drive videos
-              <iframe
-                key={mergedVideoUrl}
-                src={mergedVideoUrl.replace(/uc\?export=view&id=([^&]+)/, 'file/d/$1/preview')}
-                className="w-full h-full"
-                allow="autoplay"
-                data-testid="merged-video-player"
-              />
-            ) : (
-              // Use video element for other sources
-              <video
-                key={mergedVideoUrl}
-                controls
-                className="w-full h-full"
-                data-testid="merged-video-player"
-              >
-                <source src={mergedVideoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            )}
+            <video
+              key={mergedVideoUrl}
+              controls
+              className="w-full h-full"
+              data-testid="merged-video-player"
+            >
+              <source src={mergedVideoUrl} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
             <div className="absolute bottom-4 right-4 flex gap-2">
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  const url = mergedVideoUrl;
-                  const fileIdMatch = url.match(/id=([^&]+)/);
-                  if (fileIdMatch) {
-                    window.open(`https://drive.google.com/file/d/${fileIdMatch[1]}/view`, '_blank');
-                  }
-                }}
-                data-testid="button-view-drive"
-                title="Open in Google Drive"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12.01 1.485c-.103 0-.216.018-.32.063L1.662 6.946c-.223.095-.329.349-.235.572.095.224.349.329.572.235L12.01 2.621l10.011 5.132c.223.094.477-.011.572-.235.094-.223-.012-.477-.235-.572L12.33 1.548c-.104-.045-.217-.063-.32-.063z"/>
-                </svg>
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
                   const link = document.createElement('a');
-                  link.href = mergedVideoUrl.replace('export=view', 'export=download');
+                  link.href = mergedVideoUrl;
                   link.download = 'merged-story.mp4';
                   link.click();
                 }}

@@ -1020,13 +1020,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mergedVideoPath = await mergeVideos(sortedVideos);
       console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
 
-      // Upload merged video to Google Drive using OAuth
-      console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
-      const { uploadVideoToGoogleDriveOAuth, getDirectDownloadLinkOAuth } = await import('./googleDriveOAuth');
-      const fileName = `merged-video-${Date.now()}.mp4`;
-      const driveResult = await uploadVideoToGoogleDriveOAuth(mergedVideoPath, fileName);
-      const downloadUrl = getDirectDownloadLinkOAuth(driveResult.id);
-      console.log(`[Merge Videos] Upload successful! Google Drive URL: ${downloadUrl}`);
+      // Upload merged video to Replit Object Storage
+      console.log(`[Merge Videos] Uploading merged video to Replit Object Storage...`);
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorage = new ObjectStorageService();
+      const videoPath = await objectStorage.uploadMergedVideo(mergedVideoPath);
+      console.log(`[Merge Videos] Upload successful! Video path: ${videoPath}`);
 
       // Clean up temporary directory after successful upload
       const tempDir = path.dirname(mergedVideoPath);
@@ -1037,13 +1036,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save merged video URL to project if projectId provided
       if (projectId) {
         console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
-        await storage.updateProject(projectId, userId, { mergedVideoUrl: downloadUrl });
+        await storage.updateProject(projectId, userId, { mergedVideoUrl: videoPath });
         console.log(`[Merge Videos] Project updated successfully`);
       }
 
       res.json({ 
         success: true,
-        mergedVideoUrl: downloadUrl
+        mergedVideoUrl: videoPath
       });
     } catch (error) {
       console.error("Error in /api/merge-videos:", error);
@@ -1051,6 +1050,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to merge videos",
         message: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // Video serving endpoint for Replit Object Storage
+  app.get("/videos/:videoPath(*)", async (req, res) => {
+    try {
+      const { ObjectStorageService, ObjectNotFoundError } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving video:", error);
+      if (error && typeof error === 'object' && 'name' in error && error.name === 'ObjectNotFoundError') {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
     }
   });
 
