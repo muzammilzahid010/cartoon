@@ -1245,6 +1245,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Drive OAuth setup helpers (Admin only)
+  app.get("/api/google-drive/auth-url", requireAdmin, async (req, res) => {
+    try {
+      const { generateAuthUrl } = await import('./googleDriveOAuth');
+      const authUrl = await generateAuthUrl();
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error generating auth URL:", error);
+      res.status(500).json({ 
+        error: "Failed to generate auth URL",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/google-drive/exchange-token", requireAdmin, async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: "Authorization code required" });
+      }
+
+      const { exchangeCodeForToken } = await import('./googleDriveOAuth');
+      const refreshToken = await exchangeCodeForToken(code);
+      
+      res.json({ 
+        refreshToken,
+        message: "Add this token to your secrets as GOOGLE_DRIVE_REFRESH_TOKEN"
+      });
+    } catch (error) {
+      console.error("Error exchanging token:", error);
+      res.status(500).json({ 
+        error: "Failed to exchange token",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
