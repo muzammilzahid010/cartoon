@@ -75,9 +75,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize database and default admin user
+  // Initialize database, default admin user, and token settings
   const { storage } = await import("./storage");
   await storage.initializeDefaultAdmin();
+  await storage.initializeTokenSettings();
   
   const server = await registerRoutes(app);
 

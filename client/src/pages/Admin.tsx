@@ -40,9 +40,22 @@ const updateTokenSchema = z.object({
   apiToken: z.string().min(1, "API token is required"),
 });
 
+const addApiTokenSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  label: z.string().min(1, "Label is required"),
+});
+
+const tokenRotationSettingsSchema = z.object({
+  rotationEnabled: z.boolean(),
+  rotationIntervalMinutes: z.string().min(1, "Interval is required"),
+  maxRequestsPerToken: z.string().min(1, "Max requests is required"),
+});
+
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdatePlanFormData = z.infer<typeof updatePlanSchema>;
 type UpdateTokenFormData = z.infer<typeof updateTokenSchema>;
+type AddApiTokenFormData = z.infer<typeof addApiTokenSchema>;
+type TokenRotationSettingsFormData = z.infer<typeof tokenRotationSettingsSchema>;
 
 interface UserData {
   id: string;
@@ -52,6 +65,23 @@ interface UserData {
   planStatus: string;
   planExpiry: string | null;
   apiToken: string | null;
+}
+
+interface ApiTokenData {
+  id: string;
+  token: string;
+  label: string;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  requestCount: string;
+  createdAt: string;
+}
+
+interface TokenRotationSettings {
+  id: string;
+  rotationEnabled: boolean;
+  rotationIntervalMinutes: string;
+  maxRequestsPerToken: string;
 }
 
 export default function Admin() {
@@ -67,10 +97,6 @@ export default function Admin() {
     queryKey: ["/api/session"],
   });
 
-  // Debug logging
-  console.log("Admin page - Session data:", session);
-  console.log("Admin page - Is loading:", isLoadingSession);
-
   const isAdmin = session?.authenticated && session?.user?.isAdmin;
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery<{ users: UserData[] }>({
@@ -78,25 +104,38 @@ export default function Admin() {
     enabled: isAdmin === true,
   });
 
+  const { data: tokensData, isLoading: isLoadingTokens } = useQuery<{ tokens: ApiTokenData[] }>({
+    queryKey: ["/api/tokens"],
+    enabled: isAdmin === true,
+  });
+
+  const { data: tokenSettingsData } = useQuery<{ settings: TokenRotationSettings }>({
+    queryKey: ["/api/token-settings"],
+    enabled: isAdmin === true,
+  });
+
   useEffect(() => {
-    console.log("Admin useEffect - isLoadingSession:", isLoadingSession, "session:", session);
-    
-    // Wait for session to load first
     if (isLoadingSession) return;
     
-    // Check if not authenticated or not admin
     if (!session?.authenticated || !session?.user?.isAdmin) {
-      console.log("Admin access denied - redirecting to login");
       toast({
         variant: "destructive",
         title: "Access denied",
         description: "You must be an admin to access this page",
       });
       setLocation("/login");
-    } else {
-      console.log("Admin access granted");
     }
   }, [session, isLoadingSession, setLocation, toast]);
+
+  useEffect(() => {
+    if (tokenSettingsData?.settings) {
+      rotationSettingsForm.reset({
+        rotationEnabled: tokenSettingsData.settings.rotationEnabled,
+        rotationIntervalMinutes: tokenSettingsData.settings.rotationIntervalMinutes,
+        maxRequestsPerToken: tokenSettingsData.settings.maxRequestsPerToken,
+      });
+    }
+  }, [tokenSettingsData]);
 
   const createForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -120,6 +159,23 @@ export default function Admin() {
     resolver: zodResolver(updateTokenSchema),
     defaultValues: {
       apiToken: "",
+    },
+  });
+
+  const addTokenForm = useForm<AddApiTokenFormData>({
+    resolver: zodResolver(addApiTokenSchema),
+    defaultValues: {
+      token: "",
+      label: "",
+    },
+  });
+
+  const rotationSettingsForm = useForm<TokenRotationSettingsFormData>({
+    resolver: zodResolver(tokenRotationSettingsSchema),
+    defaultValues: {
+      rotationEnabled: false,
+      rotationIntervalMinutes: "60",
+      maxRequestsPerToken: "1000",
     },
   });
 
@@ -186,6 +242,92 @@ export default function Admin() {
       toast({
         variant: "destructive",
         title: "Failed to update token",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const addTokenMutation = useMutation({
+    mutationFn: async (data: AddApiTokenFormData) => {
+      const response = await apiRequest("POST", "/api/tokens", data);
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Token added successfully",
+      });
+      addTokenForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to add token",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const deleteTokenMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
+      const response = await apiRequest("DELETE", `/api/tokens/${tokenId}`, {});
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Token deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete token",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const toggleTokenMutation = useMutation({
+    mutationFn: async ({ tokenId, isActive }: { tokenId: string; isActive: boolean }) => {
+      const response = await apiRequest("PATCH", `/api/tokens/${tokenId}/toggle`, { isActive });
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to update token status",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const updateRotationSettingsMutation = useMutation({
+    mutationFn: async (data: TokenRotationSettingsFormData) => {
+      const response = await apiRequest("PUT", "/api/token-settings", {
+        rotationEnabled: data.rotationEnabled,
+        rotationIntervalMinutes: parseInt(data.rotationIntervalMinutes),
+        maxRequestsPerToken: parseInt(data.maxRequestsPerToken),
+      });
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/token-settings"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to update settings",
         description: error.message || "An error occurred",
       });
     },
@@ -622,6 +764,224 @@ export default function Admin() {
                               </DialogContent>
                             </Dialog>
                           </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Token Rotation Management */}
+        <Card className="shadow-xl border-purple-100 dark:border-gray-700 dark:bg-gray-800">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-700 dark:to-gray-700">
+            <CardTitle className="flex items-center gap-2 text-gray-800 dark:text-white">
+              <RefreshCw className="w-5 h-5" />
+              API Token Rotation
+            </CardTitle>
+            <CardDescription className="dark:text-gray-400">
+              Manage multiple API tokens for load balancing and automatic rotation
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 dark:bg-gray-800">
+            {/* Rotation Settings */}
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h3 className="font-semibold mb-3 text-gray-800 dark:text-white">Rotation Settings</h3>
+              <Form {...rotationSettingsForm}>
+                <form
+                  onSubmit={rotationSettingsForm.handleSubmit((data) =>
+                    updateRotationSettingsMutation.mutate(data)
+                  )}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={rotationSettingsForm.control}
+                      name="rotationEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-rotation-enabled"
+                            />
+                          </FormControl>
+                          <FormLabel className="text-gray-700 dark:text-gray-300 mb-0">
+                            Enable Rotation
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={rotationSettingsForm.control}
+                      name="rotationIntervalMinutes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">
+                            Interval (minutes)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              data-testid="input-rotation-interval"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={rotationSettingsForm.control}
+                      name="maxRequestsPerToken"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">
+                            Max Requests/Token
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              data-testid="input-max-requests"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 text-white"
+                    disabled={updateRotationSettingsMutation.isPending}
+                    data-testid="button-save-rotation-settings"
+                  >
+                    {updateRotationSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+
+            {/* Add New Token */}
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h3 className="font-semibold mb-3 text-gray-800 dark:text-white">Add New Token</h3>
+              <Form {...addTokenForm}>
+                <form
+                  onSubmit={addTokenForm.handleSubmit((data) => addTokenMutation.mutate(data))}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={addTokenForm.control}
+                      name="label"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Label</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="e.g., Primary Token"
+                              data-testid="input-token-label"
+                              className="dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                            />
+                          </FormControl>
+                          <FormMessage className="dark:text-red-400" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={addTokenForm.control}
+                      name="token"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Token</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Enter API bearer token"
+                              data-testid="input-new-token"
+                              className="font-mono dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                            />
+                          </FormControl>
+                          <FormMessage className="dark:text-red-400" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 text-white"
+                    disabled={addTokenMutation.isPending}
+                    data-testid="button-add-token"
+                  >
+                    {addTokenMutation.isPending ? "Adding..." : "Add Token"}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+
+            {/* Token List */}
+            {isLoadingTokens ? (
+              <p className="text-center py-4 text-gray-600 dark:text-gray-400">Loading tokens...</p>
+            ) : tokensData?.tokens.length === 0 ? (
+              <p className="text-center py-4 text-gray-600 dark:text-gray-400">
+                No tokens added yet. Add a token above to start.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="dark:border-gray-600">
+                      <TableHead className="dark:text-gray-300">Label</TableHead>
+                      <TableHead className="dark:text-gray-300">Token</TableHead>
+                      <TableHead className="dark:text-gray-300">Status</TableHead>
+                      <TableHead className="dark:text-gray-300">Requests</TableHead>
+                      <TableHead className="dark:text-gray-300">Last Used</TableHead>
+                      <TableHead className="dark:text-gray-300">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tokensData?.tokens.map((token) => (
+                      <TableRow key={token.id} className="dark:border-gray-600">
+                        <TableCell className="font-medium dark:text-white" data-testid={`token-label-${token.id}`}>
+                          {token.label}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm dark:text-gray-300" data-testid={`token-value-${token.id}`}>
+                          {token.token.substring(0, 20)}...
+                        </TableCell>
+                        <TableCell data-testid={`token-status-${token.id}`}>
+                          <Switch
+                            checked={token.isActive}
+                            onCheckedChange={(checked) =>
+                              toggleTokenMutation.mutate({ tokenId: token.id, isActive: checked })
+                            }
+                            data-testid={`switch-token-status-${token.id}`}
+                          />
+                          <span className={`ml-2 text-sm ${token.isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-500'}`}>
+                            {token.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="dark:text-gray-300" data-testid={`token-requests-${token.id}`}>
+                          {token.requestCount}
+                        </TableCell>
+                        <TableCell className="dark:text-gray-300" data-testid={`token-last-used-${token.id}`}>
+                          {token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleString() : "Never"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteTokenMutation.mutate(token.id)}
+                            disabled={deleteTokenMutation.isPending}
+                            data-testid={`button-delete-token-${token.id}`}
+                            className="dark:bg-red-600 dark:hover:bg-red-700"
+                          >
+                            Delete
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,7 +1,16 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { storyInputSchema, loginSchema, insertUserSchema, updateUserPlanSchema, updateUserApiTokenSchema, type Scene } from "@shared/schema";
+import { 
+  storyInputSchema, 
+  loginSchema, 
+  insertUserSchema, 
+  updateUserPlanSchema, 
+  updateUserApiTokenSchema, 
+  insertApiTokenSchema,
+  updateTokenSettingsSchema,
+  type Scene 
+} from "@shared/schema";
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
@@ -241,6 +250,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in PATCH /api/users/:id/token:", error);
       res.status(500).json({ error: "Failed to update user API token" });
+    }
+  });
+
+  // API Token Management Endpoints (admin only)
+  app.get("/api/tokens", requireAdmin, async (req, res) => {
+    try {
+      const tokens = await storage.getAllApiTokens();
+      res.json({ tokens });
+    } catch (error) {
+      console.error("Error in GET /api/tokens:", error);
+      res.status(500).json({ error: "Failed to fetch API tokens" });
+    }
+  });
+
+  app.post("/api/tokens", requireAdmin, async (req, res) => {
+    try {
+      const validationResult = insertApiTokenSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const newToken = await storage.addApiToken(validationResult.data);
+      res.json({ success: true, token: newToken });
+    } catch (error) {
+      console.error("Error in POST /api/tokens:", error);
+      res.status(500).json({ error: "Failed to add API token" });
+    }
+  });
+
+  app.delete("/api/tokens/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteApiToken(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error in DELETE /api/tokens/:id:", error);
+      res.status(500).json({ error: "Failed to delete API token" });
+    }
+  });
+
+  app.patch("/api/tokens/:id/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      
+      const updatedToken = await storage.toggleApiTokenStatus(id, isActive);
+      
+      if (!updatedToken) {
+        return res.status(404).json({ error: "Token not found" });
+      }
+
+      res.json({ success: true, token: updatedToken });
+    } catch (error) {
+      console.error("Error in PATCH /api/tokens/:id/toggle:", error);
+      res.status(500).json({ error: "Failed to update token status" });
+    }
+  });
+
+  // Token Rotation Settings Endpoints (admin only)
+  app.get("/api/token-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getTokenSettings();
+      res.json({ settings });
+    } catch (error) {
+      console.error("Error in GET /api/token-settings:", error);
+      res.status(500).json({ error: "Failed to fetch token settings" });
+    }
+  });
+
+  app.put("/api/token-settings", requireAdmin, async (req, res) => {
+    try {
+      const validationResult = updateTokenSettingsSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const updatedSettings = await storage.updateTokenSettings(validationResult.data);
+      res.json({ success: true, settings: updatedSettings });
+    } catch (error) {
+      console.error("Error in PUT /api/token-settings:", error);
+      res.status(500).json({ error: "Failed to update token settings" });
     }
   });
 
