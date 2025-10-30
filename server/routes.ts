@@ -859,9 +859,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString()
           });
 
-          // 3 second delay to avoid rate limits (unless it's the last scene)
+          // 5 second delay to avoid rate limits (unless it's the last scene)
           if (i < scenes.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await new Promise(resolve => setTimeout(resolve, 5000));
           }
 
         } catch (error) {
