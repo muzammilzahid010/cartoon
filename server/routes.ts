@@ -430,11 +430,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { scene, projectId } = validationResult.data;
-      const apiKey = process.env.VEO3_API_KEY;
+      
+      // Get API key from token rotation system or fallback to environment variable
+      let apiKey: string | undefined;
+      const rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.VEO3_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
+      }
 
       if (!apiKey) {
         return res.status(500).json({ 
-          error: "VEO3_API_KEY not configured" 
+          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
         });
       }
 
@@ -476,11 +488,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { operationName, sceneId } = validationResult.data;
-      const apiKey = process.env.VEO3_API_KEY;
+      
+      // Get API key from token rotation system or fallback to environment variable
+      let apiKey: string | undefined;
+      const rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.VEO3_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
+      }
 
       if (!apiKey) {
         return res.status(500).json({ 
-          error: "VEO3_API_KEY not configured" 
+          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
         });
       }
 
@@ -556,11 +580,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { scenes, characters, projectId } = validationResult.data;
-      const apiKey = process.env.VEO3_API_KEY;
+      
+      // Get API key from token rotation system or fallback to environment variable
+      let apiKey: string | undefined;
+      const rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.VEO3_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
+      }
 
       if (!apiKey) {
         return res.status(500).json({ 
-          error: "VEO3_API_KEY not configured" 
+          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
         });
       }
 
