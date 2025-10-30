@@ -95,6 +95,7 @@ export type Character = z.infer<typeof characterSchema>;
 export const storyInputSchema = z.object({
   script: z.string().min(50, "Script must be at least 50 characters"),
   characters: z.array(characterSchema).min(1, "At least one character is required"),
+  title: z.string().min(1, "Project title is required").optional(),
 });
 
 export type StoryInput = z.infer<typeof storyInputSchema>;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, FileText } from "lucide-react";
 import CharacterInput from "./CharacterInput";
@@ -11,6 +12,7 @@ interface ScriptFormProps {
 }
 
 export default function ScriptForm({ onSubmit }: ScriptFormProps) {
+  const [title, setTitle] = useState("");
   const [script, setScript] = useState("");
   const [characters, setCharacters] = useState<Character[]>([
     { id: "1", name: "", description: "" }
@@ -33,7 +35,7 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ script, characters });
+    onSubmit({ script, characters, title: title || undefined });
   };
 
   const isValid = script.length >= 50 && characters.every(c => c.name && c.description);
@@ -44,7 +46,28 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
         <div>
           <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-            <h2 className="text-2xl sm:text-3xl font-bold">Story Script</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">Project Details</h2>
+          </div>
+          
+          <div className="mb-6">
+            <Label htmlFor="title" className="text-sm sm:text-base">
+              Project Title <span className="text-muted-foreground text-xs">(Optional)</span>
+            </Label>
+            <Input
+              id="title"
+              placeholder="e.g., The Iron Den Adventure"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-2 text-sm sm:text-base"
+              data-testid="input-title"
+            />
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+              If left empty, a default title will be generated
+            </p>
+          </div>
+
+          <div className="mb-3 sm:mb-4">
+            <h3 className="text-xl sm:text-2xl font-semibold">Story Script</h3>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground mb-4">
             Enter your complete story script. The AI will break it down into detailed scenes.

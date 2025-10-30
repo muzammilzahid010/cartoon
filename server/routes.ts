@@ -478,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Scene generation endpoint
-  app.post("/api/generate-scenes", async (req, res) => {
+  app.post("/api/generate-scenes", requireAuth, async (req, res) => {
     try {
       // Validate request body
       const validationResult = storyInputSchema.safeParse(req.body);
@@ -491,11 +491,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const storyInput = validationResult.data;
+      const userId = req.session.userId!;
 
       // Generate scenes using Gemini AI
       const scenes = await generateScenes(storyInput);
 
-      res.json({ scenes });
+      // Auto-save as project if title is provided or generate default title
+      const projectTitle = storyInput.title || `Cartoon Story - ${new Date().toLocaleDateString()}`;
+      
+      const project = await storage.createProject({
+        userId,
+        title: projectTitle,
+        script: storyInput.script,
+        characters: JSON.stringify(storyInput.characters),
+        scenes: JSON.stringify(scenes),
+      });
+
+      res.json({ scenes, projectId: project.id });
     } catch (error) {
       console.error("Error in /api/generate-scenes:", error);
       res.status(500).json({ 
