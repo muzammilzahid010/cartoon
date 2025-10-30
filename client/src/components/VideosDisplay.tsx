@@ -223,15 +223,27 @@ export default function VideosDisplay({ videos, projectId, onStartNew, onRetryVi
             </div>
           </div>
           <div className="relative aspect-video bg-black">
-            <video
-              key={mergedVideoUrl}
-              controls
-              className="w-full h-full"
-              data-testid="merged-video-player"
-            >
-              <source src={mergedVideoUrl} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+            {mergedVideoUrl.includes('drive.google.com') ? (
+              // Use iframe for Google Drive videos
+              <iframe
+                key={mergedVideoUrl}
+                src={mergedVideoUrl.replace(/uc\?export=view&id=([^&]+)/, 'file/d/$1/preview')}
+                className="w-full h-full"
+                allow="autoplay"
+                data-testid="merged-video-player"
+              />
+            ) : (
+              // Use video element for other sources
+              <video
+                key={mergedVideoUrl}
+                controls
+                className="w-full h-full"
+                data-testid="merged-video-player"
+              >
+                <source src={mergedVideoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            )}
             <div className="absolute bottom-4 right-4 flex gap-2">
               <Button
                 size="sm"

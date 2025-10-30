@@ -104,16 +104,28 @@ export default function ProjectDetail() {
                 <CardDescription>The complete story video combining all scenes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="w-full">
-                  <video 
-                    key={project.mergedVideoUrl}
-                    controls 
-                    className="w-full rounded-lg shadow-lg"
-                    data-testid="video-merged"
-                  >
-                    <source src={project.mergedVideoUrl} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                <div className="w-full aspect-video">
+                  {project.mergedVideoUrl.includes('drive.google.com') ? (
+                    // Use iframe for Google Drive videos
+                    <iframe
+                      key={project.mergedVideoUrl}
+                      src={project.mergedVideoUrl.replace(/uc\?export=view&id=([^&]+)/, 'file/d/$1/preview')}
+                      className="w-full h-full rounded-lg shadow-lg"
+                      allow="autoplay"
+                      data-testid="video-merged"
+                    />
+                  ) : (
+                    // Use video element for other sources
+                    <video 
+                      key={project.mergedVideoUrl}
+                      controls 
+                      className="w-full rounded-lg shadow-lg"
+                      data-testid="video-merged"
+                    >
+                      <source src={project.mergedVideoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
                   <div className="mt-4 flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => {
