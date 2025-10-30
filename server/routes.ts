@@ -408,6 +408,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate VEO video directly from prompt
+  app.post("/api/generate-veo-video", async (req, res) => {
+    try {
+      const schema = z.object({
+        prompt: z.string().min(10, "Prompt must be at least 10 characters"),
+        aspectRatio: z.enum(["landscape", "portrait"]).default("landscape")
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { prompt, aspectRatio } = validationResult.data;
+      
+      // Get API key from token rotation system or fallback to environment variable
+      let apiKey: string | undefined;
+      const rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.VEO3_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
+      }
+
+      if (!apiKey) {
+        return res.status(500).json({ 
+          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
+        });
+      }
+
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+      const sceneId = `veo-${Date.now()}`;
+      const seed = Math.floor(Math.random() * 100000);
+
+      // Build the payload based on aspect ratio
+      const payload = {
+        clientContext: {
+          projectId: veoProjectId,
+          tool: "PINHOLE",
+          userPaygateTier: "PAYGATE_TIER_TWO"
+        },
+        requests: [{
+          aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+          seed: seed,
+          textInput: {
+            prompt: prompt
+          },
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+          metadata: {
+            sceneId: sceneId
+          }
+        }]
+      };
+
+      console.log(`[VEO Direct] Generating ${aspectRatio} video with prompt:`, prompt);
+
+      const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to start video generation');
+      }
+
+      const operationName = data.operations?.[0]?.operation?.name;
+
+      if (!operationName) {
+        throw new Error('No operation name returned from VEO API');
+      }
+
+      res.json({
+        operationName,
+        sceneId,
+        status: "PENDING"
+      });
+    } catch (error) {
+      console.error("Error in /api/generate-veo-video:", error);
+      res.status(500).json({ 
+        error: "Failed to start video generation",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Start video generation for a scene
   app.post("/api/generate-video", async (req, res) => {
     try {
