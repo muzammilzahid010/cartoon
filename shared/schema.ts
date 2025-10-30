@@ -42,6 +42,41 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// API Token Pool for automatic rotation
+export const apiTokens = pgTable("api_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").notNull().unique(),
+  label: text("label").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastUsedAt: text("last_used_at"),
+  requestCount: text("request_count").notNull().default("0"),
+  createdAt: text("created_at").notNull().default(sql`now()::text`),
+});
+
+// Token rotation settings
+export const tokenSettings = pgTable("token_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rotationEnabled: boolean("rotation_enabled").notNull().default(false),
+  rotationIntervalMinutes: text("rotation_interval_minutes").notNull().default("60"),
+  maxRequestsPerToken: text("max_requests_per_token").notNull().default("1000"),
+});
+
+export const insertApiTokenSchema = createInsertSchema(apiTokens).pick({
+  token: true,
+  label: true,
+});
+
+export const updateTokenSettingsSchema = z.object({
+  rotationEnabled: z.boolean(),
+  rotationIntervalMinutes: z.string(),
+  maxRequestsPerToken: z.string(),
+});
+
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type InsertApiToken = z.infer<typeof insertApiTokenSchema>;
+export type TokenSettings = typeof tokenSettings.$inferSelect;
+export type UpdateTokenSettings = z.infer<typeof updateTokenSettingsSchema>;
+
 // Character schema for the story
 export const characterSchema = z.object({
   id: z.string(),

@@ -1,6 +1,18 @@
-import { type User, type InsertUser, type UpdateUserPlan, type UpdateUserApiToken, users } from "@shared/schema";
+import {
+  type User,
+  type InsertUser,
+  type UpdateUserPlan,
+  type UpdateUserApiToken,
+  type ApiToken,
+  type InsertApiToken,
+  type TokenSettings,
+  type UpdateTokenSettings,
+  users,
+  apiTokens,
+  tokenSettings,
+} from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
@@ -15,6 +27,20 @@ export interface IStorage {
   updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined>;
   verifyPassword(user: User, password: string): Promise<boolean>;
   initializeDefaultAdmin(): Promise<void>;
+  
+  // Token pool management
+  getAllApiTokens(): Promise<ApiToken[]>;
+  getActiveApiTokens(): Promise<ApiToken[]>;
+  addApiToken(token: InsertApiToken): Promise<ApiToken>;
+  deleteApiToken(tokenId: string): Promise<void>;
+  toggleApiTokenStatus(tokenId: string, isActive: boolean): Promise<ApiToken | undefined>;
+  getNextRotationToken(): Promise<ApiToken | undefined>;
+  updateTokenUsage(tokenId: string): Promise<void>;
+  
+  // Token settings
+  getTokenSettings(): Promise<TokenSettings | undefined>;
+  updateTokenSettings(settings: UpdateTokenSettings): Promise<TokenSettings>;
+  initializeTokenSettings(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -110,6 +136,88 @@ export class DatabaseStorage implements IStorage {
         console.error("Error initializing default admin:", error);
         throw error;
       }
+    }
+  }
+
+  // Token pool management methods
+  async getAllApiTokens(): Promise<ApiToken[]> {
+    return await db.select().from(apiTokens).orderBy(desc(apiTokens.createdAt));
+  }
+
+  async getActiveApiTokens(): Promise<ApiToken[]> {
+    return await db.select().from(apiTokens).where(eq(apiTokens.isActive, true));
+  }
+
+  async addApiToken(token: InsertApiToken): Promise<ApiToken> {
+    const [newToken] = await db.insert(apiTokens).values(token).returning();
+    return newToken;
+  }
+
+  async deleteApiToken(tokenId: string): Promise<void> {
+    await db.delete(apiTokens).where(eq(apiTokens.id, tokenId));
+  }
+
+  async toggleApiTokenStatus(tokenId: string, isActive: boolean): Promise<ApiToken | undefined> {
+    const [updatedToken] = await db
+      .update(apiTokens)
+      .set({ isActive })
+      .where(eq(apiTokens.id, tokenId))
+      .returning();
+    return updatedToken || undefined;
+  }
+
+  async getNextRotationToken(): Promise<ApiToken | undefined> {
+    // Get active tokens ordered by least recently used
+    const tokens = await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.isActive, true))
+      .orderBy(apiTokens.lastUsedAt);
+    
+    return tokens[0] || undefined;
+  }
+
+  async updateTokenUsage(tokenId: string): Promise<void> {
+    const token = await db.select().from(apiTokens).where(eq(apiTokens.id, tokenId));
+    if (token[0]) {
+      const currentCount = parseInt(token[0].requestCount || "0");
+      await db
+        .update(apiTokens)
+        .set({
+          lastUsedAt: new Date().toISOString(),
+          requestCount: (currentCount + 1).toString(),
+        })
+        .where(eq(apiTokens.id, tokenId));
+    }
+  }
+
+  // Token settings methods
+  async getTokenSettings(): Promise<TokenSettings | undefined> {
+    const [settings] = await db.select().from(tokenSettings).limit(1);
+    return settings || undefined;
+  }
+
+  async updateTokenSettings(settings: UpdateTokenSettings): Promise<TokenSettings> {
+    const existing = await this.getTokenSettings();
+    
+    if (existing) {
+      const [updated] = await db
+        .update(tokenSettings)
+        .set(settings)
+        .where(eq(tokenSettings.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [newSettings] = await db.insert(tokenSettings).values(settings).returning();
+      return newSettings;
+    }
+  }
+
+  async initializeTokenSettings(): Promise<void> {
+    const existing = await this.getTokenSettings();
+    if (!existing) {
+      await db.insert(tokenSettings).values({});
+      console.log("✓ Token rotation settings initialized");
     }
   }
 }
