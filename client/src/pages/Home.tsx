@@ -407,24 +407,34 @@ export default function Home() {
                 ));
 
                 // Save completed video to history
-                try {
-                  const sceneData = scenes.find(s => s.scene === data.sceneNumber);
-                  await fetch('/api/video-history', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      prompt: sceneData?.description || 'Scene video',
-                      aspectRatio: 'landscape',
-                      status: 'completed',
-                      videoUrl: data.videoUrl,
-                      title: sceneData?.title || `Scene ${data.sceneNumber}`,
-                    }),
-                  });
-                } catch (historyError) {
-                  console.error('Failed to save video to history:', historyError);
-                }
+                (async () => {
+                  try {
+                    const sceneData = scenes.find(s => s.scene === data.sceneNumber);
+                    console.log('[Video History] Saving scene', data.sceneNumber, 'to history');
+                    const response = await fetch('/api/video-history', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        prompt: sceneData?.description || 'Scene video',
+                        aspectRatio: 'landscape',
+                        status: 'completed',
+                        videoUrl: data.videoUrl,
+                        title: sceneData?.title || `Scene ${data.sceneNumber}`,
+                      }),
+                    });
+                    
+                    if (response.ok) {
+                      const result = await response.json();
+                      console.log('[Video History] Saved successfully:', result.video.id);
+                    } else {
+                      console.error('[Video History] Failed to save:', await response.text());
+                    }
+                  } catch (historyError) {
+                    console.error('[Video History] Error:', historyError);
+                  }
+                })();
               } else if (data.type === 'error') {
                 setVideoProgress(prev => prev.map(p => 
                   p.sceneNumber === data.sceneNumber 
