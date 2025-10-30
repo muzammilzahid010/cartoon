@@ -142,12 +142,6 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
-            <p className="text-sm text-blue-900 dark:text-blue-300 font-medium mb-2">Default Admin Credentials:</p>
-            <p className="text-xs text-blue-800 dark:text-blue-400">Username: <code className="bg-blue-100 dark:bg-gray-600 px-1 py-0.5 rounded">muzi</code></p>
-            <p className="text-xs text-blue-800 dark:text-blue-400">Password: <code className="bg-blue-100 dark:bg-gray-600 px-1 py-0.5 rounded">muzi123</code></p>
-          </div>
         </CardContent>
       </Card>
     </div>
