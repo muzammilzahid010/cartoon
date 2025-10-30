@@ -46,29 +46,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined> {
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        planType: plan.planType,
-        planStatus: plan.planStatus,
-        planExpiry: plan.planExpiry || null,
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    
-    return updatedUser || undefined;
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          planType: plan.planType,
+          planStatus: plan.planStatus,
+          planExpiry: plan.planExpiry || null,
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error("Error updating user plan:", error);
+      throw error;
+    }
   }
 
   async updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined> {
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        apiToken: token.apiToken,
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    
-    return updatedUser || undefined;
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          apiToken: token.apiToken,
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error("Error updating user API token:", error);
+      throw error;
+    }
   }
 
   async verifyPassword(user: User, password: string): Promise<boolean> {
@@ -76,22 +86,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async initializeDefaultAdmin(): Promise<void> {
-    // Check if default admin already exists
-    const existingAdmin = await this.getUserByUsername("muzi");
-    
-    if (!existingAdmin) {
-      // Create default admin user
-      const hashedPassword = await bcrypt.hash("muzi123", SALT_ROUNDS);
-      await db.insert(users).values({
-        username: "muzi",
-        password: hashedPassword,
-        isAdmin: true,
-        planType: "premium",
-        planStatus: "active",
-        planExpiry: null,
-        apiToken: null,
-      });
-      console.log("✓ Default admin user created (username: muzi, password: muzi123)");
+    try {
+      // Check if default admin already exists
+      const existingAdmin = await this.getUserByUsername("muzi");
+      
+      if (!existingAdmin) {
+        // Create default admin user
+        const hashedPassword = await bcrypt.hash("muzi123", SALT_ROUNDS);
+        await db.insert(users).values({
+          username: "muzi",
+          password: hashedPassword,
+          isAdmin: true,
+          planType: "premium",
+          planStatus: "active",
+        });
+        console.log("✓ Default admin user created (username: muzi, password: muzi123)");
+      }
+    } catch (error) {
+      // If unique constraint error, admin already exists (race condition)
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        console.log("✓ Default admin user already exists");
+      } else {
+        console.error("Error initializing default admin:", error);
+        throw error;
+      }
     }
   }
 }

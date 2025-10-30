@@ -53,20 +53,21 @@ Preferred communication style: Simple, everyday language.
 - Session-based authentication with express-session and MemoryStore
 
 **Server Organization**:
-- `server/index.ts` - Express server setup and middleware configuration
+- `server/index.ts` - Express server setup, middleware configuration, and database initialization
 - `server/routes.ts` - API route definitions
 - `server/gemini.ts` - AI integration logic
-- `server/storage.ts` - In-memory storage implementation (currently using MemStorage)
+- `server/storage.ts` - Database storage implementation using PostgreSQL (DatabaseStorage class)
+- `server/db.ts` - Database connection and Drizzle ORM setup
 - `server/vite.ts` - Vite development server integration
 
 ### Data Storage
 
-**Current Implementation**: In-memory storage using a Map-based implementation (MemStorage class)
+**Current Implementation**: PostgreSQL database using Neon serverless with Drizzle ORM
 
 **Schema Definition**: 
 - Drizzle ORM schema definitions in `shared/schema.ts`
-- PostgreSQL-compatible schema using Drizzle with Neon serverless driver
-- Database prepared but not currently utilized for runtime storage
+- PostgreSQL database using Neon serverless driver
+- All user data persisted to database with automatic initialization
 
 **Data Models**:
 - Users table with id, username, password (hashed with bcrypt), isAdmin, planType, planStatus, planExpiry, apiToken fields

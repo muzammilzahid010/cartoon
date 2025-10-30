@@ -10,8 +10,8 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   planType: text("plan_type").notNull().default("free"),
   planStatus: text("plan_status").notNull().default("active"),
-  planExpiry: text("plan_expiry"),
-  apiToken: text("api_token"),
+  planExpiry: text("plan_expiry").default(sql`null`),
+  apiToken: text("api_token").default(sql`null`),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
