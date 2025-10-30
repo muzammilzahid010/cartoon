@@ -1,12 +1,11 @@
-import { type User, type InsertUser, type UpdateUserPlan, type UpdateUserApiToken } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type User, type InsertUser, type UpdateUserPlan, type UpdateUserApiToken, users } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
 
-// modify the interface with any CRUD methods
-// you might need
-
+// Storage interface for user operations
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -15,93 +14,86 @@ export interface IStorage {
   updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined>;
   updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined>;
   verifyPassword(user: User, password: string): Promise<boolean>;
+  initializeDefaultAdmin(): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-    
-    // Create default admin user (username: muzi, password: muzi123)
-    // Password is hashed using bcrypt (synchronously in constructor)
-    const adminId = randomUUID();
-    const hashedPassword = bcrypt.hashSync("muzi123", SALT_ROUNDS);
-    const defaultAdmin: User = {
-      id: adminId,
-      username: "muzi",
-      password: hashedPassword,
-      isAdmin: true,
-      planType: "premium",
-      planStatus: "active",
-      planExpiry: null,
-      apiToken: null,
-    };
-    this.users.set(adminId, defaultAdmin);
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const hashedPassword = await bcrypt.hash(insertUser.password, SALT_ROUNDS);
-    const user: User = { 
-      ...insertUser, 
-      id,
-      password: hashedPassword,
-      isAdmin: insertUser.isAdmin ?? false,
-      planType: "free",
-      planStatus: "active",
-      planExpiry: null,
-      apiToken: null,
-    };
-    this.users.set(id, user);
-    return user;
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    return await db.select().from(users);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const hashedPassword = await bcrypt.hash(insertUser.password, SALT_ROUNDS);
+    const [user] = await db
+      .insert(users)
+      .values({
+        username: insertUser.username,
+        password: hashedPassword,
+        isAdmin: insertUser.isAdmin ?? false,
+      })
+      .returning();
+    return user;
   }
 
   async updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined> {
-    const user = this.users.get(userId);
-    if (!user) return undefined;
-
-    const updatedUser: User = {
-      ...user,
-      planType: plan.planType,
-      planStatus: plan.planStatus,
-      planExpiry: plan.planExpiry ?? null,
-    };
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        planType: plan.planType,
+        planStatus: plan.planStatus,
+        planExpiry: plan.planExpiry || null,
+      })
+      .where(eq(users.id, userId))
+      .returning();
     
-    this.users.set(userId, updatedUser);
-    return updatedUser;
+    return updatedUser || undefined;
   }
 
   async updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined> {
-    const user = this.users.get(userId);
-    if (!user) return undefined;
-
-    const updatedUser: User = {
-      ...user,
-      apiToken: token.apiToken,
-    };
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        apiToken: token.apiToken,
+      })
+      .where(eq(users.id, userId))
+      .returning();
     
-    this.users.set(userId, updatedUser);
-    return updatedUser;
+    return updatedUser || undefined;
   }
 
   async verifyPassword(user: User, password: string): Promise<boolean> {
     return await bcrypt.compare(password, user.password);
   }
+
+  async initializeDefaultAdmin(): Promise<void> {
+    // Check if default admin already exists
+    const existingAdmin = await this.getUserByUsername("muzi");
+    
+    if (!existingAdmin) {
+      // Create default admin user
+      const hashedPassword = await bcrypt.hash("muzi123", SALT_ROUNDS);
+      await db.insert(users).values({
+        username: "muzi",
+        password: hashedPassword,
+        isAdmin: true,
+        planType: "premium",
+        planStatus: "active",
+        planExpiry: null,
+        apiToken: null,
+      });
+      console.log("✓ Default admin user created (username: muzi, password: muzi123)");
+    }
+  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
