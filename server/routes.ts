@@ -15,7 +15,6 @@ import {
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
-import { mergeVideos } from "./videoMerger";
 import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
 import path from "path";
