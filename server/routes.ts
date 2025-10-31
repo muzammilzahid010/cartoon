@@ -1195,12 +1195,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mergedVideoPath = await mergeVideos(sortedVideos);
       console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
 
-      // Upload merged video to Replit Object Storage
-      console.log(`[Merge Videos] Uploading merged video to Replit Object Storage...`);
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorage = new ObjectStorageService();
-      const videoPath = await objectStorage.uploadMergedVideo(mergedVideoPath);
-      console.log(`[Merge Videos] Upload successful! Video path: ${videoPath}`);
+      // Upload merged video to Google Drive
+      console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
+      const { uploadVideoToGoogleDriveOAuth, getDirectDownloadLinkOAuth } = await import('./googleDriveOAuth');
+      
+      const fileName = projectId 
+        ? `cartoon-video-${projectId}-${Date.now()}.mp4`
+        : `merged-video-${Date.now()}.mp4`;
+      
+      const uploadResult = await uploadVideoToGoogleDriveOAuth(mergedVideoPath, fileName);
+      const videoUrl = getDirectDownloadLinkOAuth(uploadResult.id);
+      
+      console.log(`[Merge Videos] Upload successful! Google Drive File ID: ${uploadResult.id}`);
+      console.log(`[Merge Videos] Preview link: ${uploadResult.webViewLink}`);
+      console.log(`[Merge Videos] Direct download link: ${videoUrl}`);
 
       // Clean up temporary directory after successful upload
       const tempDir = path.dirname(mergedVideoPath);
@@ -1211,13 +1219,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save merged video URL to project if projectId provided
       if (projectId) {
         console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
-        await storage.updateProject(projectId, userId, { mergedVideoUrl: videoPath });
+        await storage.updateProject(projectId, userId, { mergedVideoUrl: videoUrl });
         console.log(`[Merge Videos] Project updated successfully`);
       }
 
       res.json({ 
         success: true,
-        mergedVideoUrl: videoPath
+        mergedVideoUrl: videoUrl,
+        googleDriveFileId: uploadResult.id,
+        webViewLink: uploadResult.webViewLink,
+        webContentLink: uploadResult.webContentLink
       });
     } catch (error) {
       console.error("Error in /api/merge-videos:", error);
