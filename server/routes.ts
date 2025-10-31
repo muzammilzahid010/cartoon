@@ -46,6 +46,22 @@ const requireAdmin = async (req: Request, res: Response, next: NextFunction) => 
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Loader.io verification endpoint
+  app.get("/loaderio-34c6b917514b779ecc940b8a20a020fd.txt", (_req, res) => {
+    res.type('text/plain');
+    res.send('loaderio-34c6b917514b779ecc940b8a20a020fd');
+  });
+
+  app.get("/loaderio-34c6b917514b779ecc940b8a20a020fd.html", (_req, res) => {
+    res.type('text/html');
+    res.send('loaderio-34c6b917514b779ecc940b8a20a020fd');
+  });
+
+  app.get("/loaderio-34c6b917514b779ecc940b8a20a020fd/", (_req, res) => {
+    res.type('text/plain');
+    res.send('loaderio-34c6b917514b779ecc940b8a20a020fd');
+  });
+
   // Login endpoint
   app.post("/api/login", async (req, res) => {
     try {
