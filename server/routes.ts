@@ -724,6 +724,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate a failed video from history
+  app.post("/api/regenerate-video", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        videoId: z.string(),
+        prompt: z.string().min(10, "Prompt must be at least 10 characters"),
+        aspectRatio: z.enum(["landscape", "portrait"]).default("landscape"),
+        projectId: z.string().optional(),
+        sceneNumber: z.number().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { videoId, prompt, aspectRatio, projectId, sceneNumber } = validationResult.data;
+      
+      // First, verify the video exists and belongs to the user, then update status to pending
+      const updatedVideo = await storage.updateVideoHistoryStatus(videoId, userId, 'pending');
+      
+      if (!updatedVideo) {
+        return res.status(404).json({ 
+          error: "Video not found or you don't have permission to regenerate it" 
+        });
+      }
+
+      // Get API key from token rotation system or fallback to environment variable
+      let apiKey: string | undefined;
+      const rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.VEO3_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
+      }
+
+      if (!apiKey) {
+        return res.status(500).json({ 
+          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
+        });
+      }
+
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+      const sceneId = `regenerate-${videoId}-${Date.now()}`;
+      const seed = Math.floor(Math.random() * 100000);
+
+      // Build the payload
+      const payload = {
+        clientContext: {
+          projectId: veoProjectId,
+          tool: "PINHOLE",
+          userPaygateTier: "PAYGATE_TIER_TWO"
+        },
+        requests: [{
+          aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+          seed: seed,
+          textInput: {
+            prompt: prompt
+          },
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+          metadata: {
+            sceneId: sceneId
+          }
+        }]
+      };
+
+      console.log(`[VEO Regenerate] Regenerating video ${videoId} (scene ${sceneNumber || 'N/A'}) with prompt:`, prompt);
+
+      const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('[VEO Regenerate] Error response:', data);
+        await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+        return res.status(500).json({ 
+          error: "VEO API error",
+          details: data 
+        });
+      }
+
+      if (!data.operations || data.operations.length === 0) {
+        await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+        return res.status(500).json({ error: "No operations returned from VEO API" });
+      }
+
+      const operation = data.operations[0];
+      const operationName = operation.operation.name;
+
+      console.log(`[VEO Regenerate] Started regeneration - Operation: ${operationName}, Scene ID: ${sceneId}`);
+
+      res.json({
+        success: true,
+        operationName,
+        sceneId,
+        videoId,
+        message: "Video regeneration started"
+      });
+    } catch (error) {
+      console.error("Error in /api/regenerate-video:", error);
+      res.status(500).json({ 
+        error: "Failed to regenerate video",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Check video generation status
   app.post("/api/check-video-status", async (req, res) => {
     try {

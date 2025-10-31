@@ -42,11 +42,33 @@ export default function History() {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: async ({ sceneNumber, prompt }: { sceneNumber: number; prompt: string }) => {
-      const response = await apiRequest("POST", "/api/generate-veo-video", { 
-        prompt, 
-        aspectRatio: "landscape" 
+    mutationFn: async ({ prompt, sceneNumber, videoId, projectId }: { 
+      prompt: string; 
+      sceneNumber: number;
+      videoId: string;
+      projectId?: string;
+    }) => {
+      // Use the dedicated regenerate endpoint
+      const response = await fetch('/api/regenerate-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          videoId,
+          prompt,
+          aspectRatio: "landscape",
+          projectId,
+          sceneNumber
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to regenerate video');
+      }
+
       return response.json();
     },
     onSuccess: () => {
@@ -87,8 +109,6 @@ export default function History() {
   };
 
   const handleMergeVideos = async (projectKey: string, videos: VideoHistory[], projectId?: string) => {
-    setMergingProject(projectKey);
-    
     try {
       const completedVideos = videos.filter(v => v.status === 'completed' && v.videoUrl);
       
@@ -100,6 +120,8 @@ export default function History() {
         });
         return;
       }
+
+      setMergingProject(projectKey);
 
       // Sort by scene number (extract from title)
       const sortedVideos = completedVideos.sort((a, b) => {
@@ -212,7 +234,9 @@ export default function History() {
           <Button
             onClick={() => regenerateMutation.mutate({ 
               sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
-              prompt: video.prompt 
+              prompt: video.prompt,
+              videoId: video.id,
+              projectId: video.projectId || undefined
             })}
             variant="outline"
             className="w-full"
