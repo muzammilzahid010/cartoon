@@ -16,6 +16,7 @@ import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
 import { mergeVideos } from "./videoMerger";
+import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
 import path from "path";
 import { existsSync } from "fs";
@@ -1186,49 +1187,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[Merge Videos] Starting merge of ${videos.length} videos`);
+      console.log(`[Merge Videos] Starting merge of ${videos.length} videos using fal.ai`);
 
       // Sort videos by scene number before merging to ensure correct sequence
       const sortedVideos = [...videos].sort((a, b) => a.sceneNumber - b.sceneNumber);
+      const videoUrls = sortedVideos.map(v => v.videoUrl);
 
-      // Merge videos and get local file path
-      const mergedVideoPath = await mergeVideos(sortedVideos);
-      console.log(`[Merge Videos] Videos merged successfully at: ${mergedVideoPath}`);
-
-      // Upload merged video to Google Drive
-      console.log(`[Merge Videos] Uploading merged video to Google Drive...`);
-      const { uploadVideoToGoogleDriveOAuth, getDirectDownloadLinkOAuth } = await import('./googleDriveOAuth');
-      
-      const fileName = projectId 
-        ? `cartoon-video-${projectId}-${Date.now()}.mp4`
-        : `merged-video-${Date.now()}.mp4`;
-      
-      const uploadResult = await uploadVideoToGoogleDriveOAuth(mergedVideoPath, fileName);
-      const videoUrl = getDirectDownloadLinkOAuth(uploadResult.id);
-      
-      console.log(`[Merge Videos] Upload successful! Google Drive File ID: ${uploadResult.id}`);
-      console.log(`[Merge Videos] Preview link: ${uploadResult.webViewLink}`);
-      console.log(`[Merge Videos] Direct download link: ${videoUrl}`);
-
-      // Clean up temporary directory after successful upload
-      const tempDir = path.dirname(mergedVideoPath);
-      console.log(`[Merge Videos] Cleaning up temporary files in: ${tempDir}`);
-      await rm(tempDir, { recursive: true, force: true });
-      console.log(`[Merge Videos] Cleanup complete`);
+      // Merge videos using fal.ai API
+      const mergedVideoUrl = await mergeVideosWithFalAI(videoUrls);
+      console.log(`[Merge Videos] Videos merged successfully with fal.ai`);
+      console.log(`[Merge Videos] Merged video URL: ${mergedVideoUrl}`);
 
       // Save merged video URL to project if projectId provided
       if (projectId) {
         console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
-        await storage.updateProject(projectId, userId, { mergedVideoUrl: videoUrl });
+        await storage.updateProject(projectId, userId, { mergedVideoUrl: mergedVideoUrl });
         console.log(`[Merge Videos] Project updated successfully`);
       }
 
       res.json({ 
         success: true,
-        mergedVideoUrl: videoUrl,
-        googleDriveFileId: uploadResult.id,
-        webViewLink: uploadResult.webViewLink,
-        webContentLink: uploadResult.webContentLink
+        mergedVideoUrl: mergedVideoUrl
       });
     } catch (error) {
       console.error("Error in /api/merge-videos:", error);
