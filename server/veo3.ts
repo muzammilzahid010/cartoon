@@ -197,8 +197,11 @@ export async function generateVideoForScene(
 export async function checkVideoStatus(
   operationName: string,
   sceneId: string,
-  apiKey: string
+  apiKey: string,
+  retryCount: number = 0
 ): Promise<{ status: string; videoUrl?: string; error?: string }> {
+  const MAX_RETRIES = 3;
+  
   // Trim the API key and remove "Bearer " prefix if present
   let trimmedApiKey = apiKey.trim();
   if (trimmedApiKey.startsWith('Bearer ')) {
@@ -294,10 +297,18 @@ export async function checkVideoStatus(
   } catch (error: any) {
     clearTimeout(timeoutId);
     
-    // Handle timeout specifically
+    // Handle timeout specifically with retry logic
     if (error.name === 'AbortError') {
-      console.error(`[VEO3] Status check timeout after 30 seconds for ${sceneId}`);
-      throw new Error('VEO 3 API request timed out. Please try again.');
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.log(`[VEO3] Status check timeout for ${sceneId}, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return checkVideoStatus(operationName, sceneId, apiKey, retryCount + 1);
+      } else {
+        console.error(`[VEO3] Status check timeout after ${MAX_RETRIES} retries for ${sceneId}`);
+        // Return PENDING status instead of throwing to allow polling to continue
+        return { status: "PENDING" };
+      }
     }
     
     throw error;
