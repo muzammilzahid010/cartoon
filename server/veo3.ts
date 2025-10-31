@@ -138,41 +138,60 @@ export async function generateVideoForScene(
   console.log(`[VEO3] Request URL: ${VEO3_BASE_URL}:batchAsyncGenerateVideoText`);
   console.log(`[VEO3] Request body:`, JSON.stringify(requestBody, null, 2));
 
-  const response = await fetch(`${VEO3_BASE_URL}:batchAsyncGenerateVideoText`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${trimmedApiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(requestBody)
-  });
+  // Create an AbortController for timeout handling (60 seconds for generation)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  console.log(`[VEO3] Response status: ${response.status} ${response.statusText}`);
+  try {
+    const response = await fetch(`${VEO3_BASE_URL}:batchAsyncGenerateVideoText`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${trimmedApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`VEO 3 API error: ${response.status} - ${errorText}`);
+    clearTimeout(timeoutId);
+
+    console.log(`[VEO3] Response status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`VEO 3 API error: ${response.status} - ${errorText}`);
+    }
+
+    const data: VideoGenerationResponse = await response.json();
+    console.log(`[VEO3] Response data:`, JSON.stringify(data, null, 2));
+
+    if (!data.operations || data.operations.length === 0) {
+      throw new Error("No operation returned from VEO 3 API");
+    }
+
+    // Flow API nests the operation name inside operation.name
+    const operationName = data.operations[0].operation?.name;
+    console.log(`[VEO3] Operation name: ${operationName}`);
+    
+    if (!operationName) {
+      throw new Error("No operation name in response");
+    }
+    
+    return {
+      operationName,
+      sceneId
+    };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    // Handle timeout specifically
+    if (error.name === 'AbortError') {
+      console.error(`[VEO3] Video generation request timeout after 60 seconds for scene ${scene.scene}`);
+      throw new Error('VEO 3 API request timed out. Please try again.');
+    }
+    
+    throw error;
   }
-
-  const data: VideoGenerationResponse = await response.json();
-  console.log(`[VEO3] Response data:`, JSON.stringify(data, null, 2));
-
-  if (!data.operations || data.operations.length === 0) {
-    throw new Error("No operation returned from VEO 3 API");
-  }
-
-  // Flow API nests the operation name inside operation.name
-  const operationName = data.operations[0].operation?.name;
-  console.log(`[VEO3] Operation name: ${operationName}`);
-  
-  if (!operationName) {
-    throw new Error("No operation name in response");
-  }
-  
-  return {
-    operationName,
-    sceneId
-  };
 }
 
 export async function checkVideoStatus(
@@ -196,27 +215,35 @@ export async function checkVideoStatus(
     }]
   };
 
-  const response = await fetch(`${VEO3_BASE_URL}:batchCheckAsyncVideoGenerationStatus`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${trimmedApiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(requestBody)
-  });
+  // Create an AbortController for timeout handling (30 seconds)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`VEO 3 status check error: ${response.status} - ${errorText}`);
-  }
+  try {
+    const response = await fetch(`${VEO3_BASE_URL}:batchCheckAsyncVideoGenerationStatus`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${trimmedApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
 
-  const data: VideoStatusResponse = await response.json();
-  console.log(`[VEO3] Status check response:`, JSON.stringify(data, null, 2));
+    clearTimeout(timeoutId);
 
-  if (!data.operations || data.operations.length === 0) {
-    console.log(`[VEO3] No operations in status response, returning PENDING`);
-    return { status: "PENDING" };
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`VEO 3 status check error: ${response.status} - ${errorText}`);
+    }
+
+    const data: VideoStatusResponse = await response.json();
+    console.log(`[VEO3] Status check response:`, JSON.stringify(data, null, 2));
+
+    if (!data.operations || data.operations.length === 0) {
+      console.log(`[VEO3] No operations in status response, returning PENDING`);
+      return { status: "PENDING" };
+    }
 
   const operationData = data.operations[0];
   console.log(`[VEO3] Operation status: ${operationData.status}`);
@@ -259,11 +286,22 @@ export async function checkVideoStatus(
     console.log(`[VEO3] No video URL found in response`);
   }
   
-  return {
-    status: operationData.status,
-    videoUrl: videoUrl,
-    error: operationData.operation.error?.message
-  };
+    return {
+      status: operationData.status,
+      videoUrl: videoUrl,
+      error: operationData.operation.error?.message
+    };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    // Handle timeout specifically
+    if (error.name === 'AbortError') {
+      console.error(`[VEO3] Status check timeout after 30 seconds for ${sceneId}`);
+      throw new Error('VEO 3 API request timed out. Please try again.');
+    }
+    
+    throw error;
+  }
 }
 
 // Poll for video completion with timeout
