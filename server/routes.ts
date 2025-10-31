@@ -1239,21 +1239,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Video serving endpoint for Replit Object Storage
-  app.get("/videos/:videoPath(*)", async (req, res) => {
-    try {
-      const { ObjectStorageService, ObjectNotFoundError } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      objectStorageService.downloadObject(objectFile, res);
-    } catch (error) {
-      console.error("Error serving video:", error);
-      if (error && typeof error === 'object' && 'name' in error && error.name === 'ObjectNotFoundError') {
-        return res.sendStatus(404);
-      }
-      return res.sendStatus(500);
-    }
-  });
 
   // Project endpoints
   app.get("/api/projects", requireAuth, async (req, res) => {
