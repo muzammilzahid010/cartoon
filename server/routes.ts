@@ -403,7 +403,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videos = await storage.getUserVideoHistory(userId);
-      res.json({ videos });
+      
+      // Group videos by project
+      const grouped: Record<string, { project?: any; videos: any[] }> = {};
+      
+      for (const video of videos) {
+        const key = video.projectId || 'standalone';
+        
+        if (!grouped[key]) {
+          grouped[key] = {
+            videos: []
+          };
+          
+          // Fetch project details if this is a project video
+          if (video.projectId) {
+            const project = await storage.getProject(video.projectId, userId);
+            if (project) {
+              grouped[key].project = {
+                id: project.id,
+                title: project.title,
+                scenes: JSON.parse(project.scenes),
+                characters: JSON.parse(project.characters),
+                mergedVideoUrl: project.mergedVideoUrl,
+              };
+            }
+          }
+        }
+        
+        grouped[key].videos.push(video);
+      }
+      
+      res.json({ videos, grouped });
     } catch (error) {
       console.error("Error fetching video history:", error);
       res.status(500).json({ 
