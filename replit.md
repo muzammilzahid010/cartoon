@@ -35,14 +35,14 @@ Preferred communication style: Simple, everyday language.
 ### Technical Implementations
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control.
-- **Video Merging**: FFmpeg for concatenation with Google Drive API for merged video storage and preview.
+- **Video Merging**: fal.ai FFmpeg API (`fal-ai/ffmpeg-api/merge-videos`) for cloud-based video merging. No local FFmpeg processing required.
 
 ## External Dependencies
 
 - **AI Service**: Google Gemini AI (gemini-2.5-flash model)
 - **Video Generation**: VEO 3 API
 - **Database**: Neon PostgreSQL (via `@neondatabase/serverless`), Drizzle ORM
-- **Video Storage**: Google Drive API (OAuth 2.0) for merged video uploads and preview, Cloudinary for individual scene video storage.
+- **Video Storage**: fal.ai API for merged video hosting (auto-generated URL), Cloudinary for individual scene video storage.
 - **System Dependency**: FFmpeg (for video processing)
 
-**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
+**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
