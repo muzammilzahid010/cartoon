@@ -446,19 +446,30 @@ export default function BulkGenerator() {
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
                             {video.prompt}
                           </p>
                           {video.status === "completed" && video.videoUrl && (
-                            <a
-                              href={video.videoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-purple-600 dark:text-purple-400 hover:underline mt-2 inline-block"
-                              data-testid={`link-video-${index}`}
-                            >
-                              View Video
-                            </a>
+                            <div className="mt-3">
+                              <video
+                                src={video.videoUrl}
+                                controls
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-600"
+                                data-testid={`video-player-${index}`}
+                                style={{ maxHeight: "240px" }}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                              <a
+                                href={video.videoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-purple-600 dark:text-purple-400 hover:underline mt-2 inline-block"
+                                data-testid={`link-video-${index}`}
+                              >
+                                Open in new tab
+                              </a>
+                            </div>
                           )}
                           {video.status === "failed" && video.error && (
                             <p className="text-sm text-red-600 dark:text-red-400 mt-1">
