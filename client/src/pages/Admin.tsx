@@ -326,8 +326,8 @@ export default function Admin() {
     mutationFn: async (data: TokenRotationSettingsFormData) => {
       const response = await apiRequest("PUT", "/api/token-settings", {
         rotationEnabled: data.rotationEnabled,
-        rotationIntervalMinutes: parseInt(data.rotationIntervalMinutes),
-        maxRequestsPerToken: parseInt(data.maxRequestsPerToken),
+        rotationIntervalMinutes: data.rotationIntervalMinutes,
+        maxRequestsPerToken: data.maxRequestsPerToken,
       });
       const result = await response.json();
       return result;
