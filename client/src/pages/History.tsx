@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { VideoHistory, Scene } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface GroupedVideo {
   project?: {
@@ -25,6 +26,8 @@ export default function History() {
   const [, setLocation] = useLocation();
   const [mergingProject, setMergingProject] = useState<string | null>(null);
   const [mergedVideoUrls, setMergedVideoUrls] = useState<Record<string, string>>({});
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const [isMergingSelected, setIsMergingSelected] = useState(false);
 
   const { data: session, isLoading: sessionLoading } = useQuery<{
     authenticated: boolean;
@@ -143,6 +146,95 @@ export default function History() {
     window.open(videoUrl, '_blank');
   };
 
+  const handleVideoSelect = (videoId: string, isCompleted: boolean) => {
+    if (!isCompleted) {
+      toast({
+        title: "Cannot Select",
+        description: "Only completed videos can be selected for merging.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedVideos(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(videoId)) {
+        newSelection.delete(videoId);
+      } else {
+        if (newSelection.size >= 19) {
+          toast({
+            title: "Maximum Selection Reached",
+            description: "You can select maximum 19 videos at a time.",
+            variant: "destructive",
+          });
+          return prev;
+        }
+        newSelection.add(videoId);
+      }
+      return newSelection;
+    });
+  };
+
+  const handleMergeSelected = async () => {
+    if (selectedVideos.size < 2) {
+      toast({
+        title: "Select More Videos",
+        description: "Please select at least 2 videos to merge.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsMergingSelected(true);
+
+      // Send video IDs (not URLs) for security - backend will verify ownership
+      const videoIds = Array.from(selectedVideos);
+
+      const response = await fetch('/api/merge-selected-videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          videoIds: videoIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to merge videos');
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: "Videos Merged Successfully!",
+        description: `${selectedVideos.size} videos have been merged.`,
+      });
+
+      // Clear selection
+      setSelectedVideos(new Set());
+
+      // Show the merged video in a new window or download
+      if (result.mergedVideoUrl) {
+        window.open(result.mergedVideoUrl, '_blank');
+      }
+
+      refetch();
+    } catch (error) {
+      console.error("Error merging selected videos:", error);
+      toast({
+        title: "Merge Failed",
+        description: error instanceof Error ? error.message : "Failed to merge selected videos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMergingSelected(false);
+    }
+  };
+
   const handleMergeVideos = async (projectKey: string, videos: VideoHistory[], projectId?: string) => {
     try {
       const completedVideos = videos.filter(v => v.status === 'completed' && v.videoUrl);
@@ -215,18 +307,35 @@ export default function History() {
     }
   };
 
-  const renderVideoCard = (video: VideoHistory, showRegenerateButton = false) => (
-    <Card key={video.id} data-testid={`video-card-${video.id}`} className="h-full bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
-      <CardHeader className="p-3 sm:p-4">
-        <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-white">
-          <Film className="w-4 h-4" />
-          <span className="truncate">{video.title || `Video ${video.id.slice(0, 8)}`}</span>
-        </CardTitle>
-        <CardDescription className="flex items-center gap-2 text-xs text-gray-300">
-          <Calendar className="w-3 h-3" />
-          {formatDate(video.createdAt)}
-        </CardDescription>
-      </CardHeader>
+  const renderVideoCard = (video: VideoHistory, showRegenerateButton = false) => {
+    const isSelected = selectedVideos.has(video.id);
+    const isCompleted = video.status === 'completed';
+    
+    return (
+      <Card key={video.id} data-testid={`video-card-${video.id}`} className={`h-full bg-[#1e2838] dark:bg-[#181e2a] border transition-all ${
+        isSelected ? 'border-purple-500 ring-2 ring-purple-500/50' : 'border-white/10'
+      }`}>
+        <CardHeader className="p-3 sm:p-4">
+          <div className="flex items-start gap-2 mb-2">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => handleVideoSelect(video.id, isCompleted)}
+              disabled={!isCompleted}
+              className="mt-0.5 border-white/30 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+              data-testid={`checkbox-select-${video.id}`}
+            />
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-white">
+                <Film className="w-4 h-4" />
+                <span className="truncate">{video.title || `Video ${video.id.slice(0, 8)}`}</span>
+              </CardTitle>
+              <CardDescription className="flex items-center gap-2 text-xs text-gray-300 mt-1">
+                <Calendar className="w-3 h-3" />
+                {formatDate(video.createdAt)}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
       <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-4">
         <p className="text-xs sm:text-sm">
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -300,6 +409,7 @@ export default function History() {
       </CardContent>
     </Card>
   );
+  };
 
   const renderProjectGroup = (key: string, group: GroupedVideo) => {
     const completedCount = group.videos.filter(v => v.status === 'completed').length;
@@ -407,10 +517,36 @@ export default function History() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Your Generated Videos</h2>
-          <p className="text-sm sm:text-base text-gray-300 mt-1">
-            View, download, regenerate, and merge your cartoon videos
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Your Generated Videos</h2>
+              <p className="text-sm sm:text-base text-gray-300 mt-1">
+                View, download, regenerate, and merge your cartoon videos
+              </p>
+            </div>
+            
+            {/* Merge Selected Button */}
+            {selectedVideos.size > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-gray-300">
+                  {selectedVideos.size} selected (max 19)
+                </div>
+                <Button
+                  onClick={handleMergeSelected}
+                  disabled={selectedVideos.size < 2 || isMergingSelected}
+                  className="bg-purple-600 hover:bg-purple-700 border-0 shrink-0"
+                  data-testid="button-merge-selected"
+                >
+                  {isMergingSelected ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Merge className="w-4 h-4 mr-2" />
+                  )}
+                  Merge Selected ({selectedVideos.size})
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Today's Statistics Card */}

@@ -1,0 +1,134 @@
+// Video merger utility using local FFmpeg
+// Downloads videos from URLs, merges them sequentially, and uploads to Cloudinary
+
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { writeFile, mkdir, rm, readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
+
+const execAsync = promisify(exec);
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: 'dajl2ibnc',
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string> {
+  if (videoUrls.length === 0) {
+    throw new Error('No video URLs provided for merging');
+  }
+
+  if (videoUrls.length > 19) {
+    throw new Error('Cannot merge more than 19 videos at once');
+  }
+
+  // Create unique temp directory for this merge operation
+  const uniqueId = randomUUID();
+  const tempDir = path.join('/tmp', `video-merge-${uniqueId}`);
+  const listFile = path.join(tempDir, 'filelist.txt');
+  const outputFile = path.join(tempDir, 'merged-output.mp4');
+
+  try {
+    // Create temp directory if it doesn't exist
+    if (!existsSync(tempDir)) {
+      await mkdir(tempDir, { recursive: true });
+    }
+
+    console.log(`[FFmpeg Merger] Starting merge of ${videoUrls.length} videos in ${tempDir}`);
+
+    // Step 1: Download all videos to temp directory
+    const downloadedFiles: string[] = [];
+    for (let i = 0; i < videoUrls.length; i++) {
+      const filename = path.join(tempDir, `video-${i + 1}.mp4`);
+      console.log(`[FFmpeg Merger] Downloading video ${i + 1}/${videoUrls.length}...`);
+      
+      const response = await fetch(videoUrls[i]);
+      if (!response.ok) {
+        throw new Error(`Failed to download video ${i + 1}: ${response.statusText}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      await writeFile(filename, Buffer.from(buffer));
+      downloadedFiles.push(filename);
+      console.log(`[FFmpeg Merger] Downloaded video ${i + 1} (${buffer.byteLength} bytes)`);
+    }
+
+    // Step 2: Create file list for FFmpeg concat
+    const fileListContent = downloadedFiles
+      .map(file => `file '${file}'`)
+      .join('\n');
+    await writeFile(listFile, fileListContent);
+    console.log(`[FFmpeg Merger] Created file list with ${downloadedFiles.length} videos`);
+
+    // Step 3: Merge videos using FFmpeg concat demuxer
+    console.log(`[FFmpeg Merger] Running FFmpeg to merge videos...`);
+    const ffmpegCommand = `ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${outputFile}"`;
+    
+    try {
+      const { stdout, stderr } = await execAsync(ffmpegCommand, { maxBuffer: 1024 * 1024 * 10 });
+      console.log(`[FFmpeg Merger] FFmpeg completed successfully`);
+      if (stderr) {
+        console.log(`[FFmpeg Merger] FFmpeg stderr:`, stderr.substring(0, 500));
+      }
+    } catch (ffmpegError: any) {
+      console.error(`[FFmpeg Merger] FFmpeg error:`, ffmpegError.stderr || ffmpegError.message);
+      throw new Error(`FFmpeg failed: ${ffmpegError.message}`);
+    }
+
+    // Step 4: Upload merged video to Cloudinary
+    console.log(`[FFmpeg Merger] Uploading merged video to Cloudinary...`);
+    
+    const uploadResult = await new Promise<any>((resolve, reject) => {
+      cloudinary.uploader.upload(
+        outputFile,
+        {
+          resource_type: 'video',
+          folder: 'cartoon-videos/merged',
+          public_id: `merged-${uniqueId}`,
+          overwrite: true,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error) {
+            console.error(`[FFmpeg Merger] Cloudinary upload error:`, error);
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+    });
+
+    const cloudinaryUrl = uploadResult.secure_url;
+    console.log(`[FFmpeg Merger] Upload complete! URL: ${cloudinaryUrl}`);
+
+    // Step 5: Clean up temp directory
+    try {
+      await rm(tempDir, { recursive: true, force: true });
+      console.log(`[FFmpeg Merger] Cleanup successful`);
+    } catch (cleanupError) {
+      console.error(`[FFmpeg Merger] Cleanup failed:`, cleanupError);
+    }
+
+    return cloudinaryUrl;
+  } catch (error) {
+    console.error(`[FFmpeg Merger] Error during merge process:`, error);
+    
+    // Clean up on error - remove entire temp directory
+    try {
+      if (existsSync(tempDir)) {
+        await rm(tempDir, { recursive: true, force: true });
+        console.log(`[FFmpeg Merger] Error cleanup successful`);
+      }
+    } catch (cleanupError) {
+      console.error(`[FFmpeg Merger] Error cleanup failed:`, cleanupError);
+    }
+    
+    throw new Error(`Failed to merge videos with FFmpeg: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}

@@ -1451,6 +1451,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merge selected videos from history using FFmpeg
+  app.post("/api/merge-selected-videos", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        videoIds: z.array(z.string()).min(2).max(19)
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { videoIds } = validationResult.data;
+      const userId = req.session.userId!;
+
+      console.log(`[Merge Selected] Starting FFmpeg merge of ${videoIds.length} selected videos for user ${userId}`);
+
+      // Security: Verify all videos belong to the authenticated user
+      const userVideos = await storage.getUserVideoHistory(userId);
+      const videoUrls: string[] = [];
+
+      for (const videoId of videoIds) {
+        const video = userVideos.find(v => v.id === videoId);
+        
+        if (!video) {
+          return res.status(403).json({ 
+            error: "Forbidden",
+            message: `Video ${videoId} not found or does not belong to you`
+          });
+        }
+
+        if (video.status !== 'completed' || !video.videoUrl) {
+          return res.status(400).json({ 
+            error: "Invalid video",
+            message: `Video ${videoId} is not completed or has no URL`
+          });
+        }
+
+        // Additional security: Verify URL is from Cloudinary
+        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+          return res.status(400).json({ 
+            error: "Invalid video URL",
+            message: `Video ${videoId} has an invalid URL`
+          });
+        }
+
+        videoUrls.push(video.videoUrl);
+      }
+
+      console.log(`[Merge Selected] All videos verified, proceeding with merge`);
+
+      // Import the FFmpeg merger function
+      const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
+      
+      // Merge videos using local FFmpeg
+      const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
+      console.log(`[Merge Selected] Videos merged successfully with FFmpeg`);
+      console.log(`[Merge Selected] Merged video URL: ${mergedVideoUrl}`);
+
+      res.json({ 
+        success: true,
+        mergedVideoUrl: mergedVideoUrl
+      });
+    } catch (error) {
+      console.error("Error in /api/merge-selected-videos:", error);
+      res.status(500).json({ 
+        error: "Failed to merge selected videos",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
 
   // Project endpoints
   app.get("/api/projects", requireAuth, async (req, res) => {
