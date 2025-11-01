@@ -64,6 +64,7 @@ export interface IStorage {
   getUserVideoHistory(userId: string): Promise<VideoHistory[]>;
   addVideoHistory(video: InsertVideoHistory): Promise<VideoHistory>;
   updateVideoHistoryStatus(videoId: string, userId: string, status: string, videoUrl?: string): Promise<VideoHistory | undefined>;
+  updateVideoHistoryFields(videoId: string, fields: Partial<VideoHistory>): Promise<VideoHistory | undefined>;
   
   // Projects
   getUserProjects(userId: string): Promise<Project[]>;
@@ -386,6 +387,18 @@ export class DatabaseStorage implements IStorage {
       .update(videoHistory)
       .set(updateData)
       .where(and(eq(videoHistory.id, videoId), eq(videoHistory.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async updateVideoHistoryFields(
+    videoId: string,
+    fields: Partial<VideoHistory>
+  ): Promise<VideoHistory | undefined> {
+    const [updated] = await db
+      .update(videoHistory)
+      .set(fields)
+      .where(eq(videoHistory.id, videoId))
       .returning();
     return updated || undefined;
   }

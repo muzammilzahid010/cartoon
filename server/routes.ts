@@ -884,12 +884,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[VEO Regenerate] Started regeneration - Operation: ${operationName}, Scene ID: ${sceneId}`);
 
+      // Update history with token ID if available
+      if (rotationToken) {
+        try {
+          await storage.updateVideoHistoryFields(videoId, { tokenUsed: rotationToken.id });
+        } catch (err) {
+          console.error('Failed to update video history with token ID:', err);
+        }
+      }
+
+      // Poll for completion in the background (don't block response)
+      (async () => {
+        try {
+          let completed = false;
+          let attempts = 0;
+          const maxAttempts = 120; // 4 minutes max (120 * 2 seconds = 240 seconds)
+
+          while (!completed && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            attempts++;
+
+            try {
+              const statusResult = await checkVideoStatus(operationName, sceneId, apiKey!);
+
+              if (statusResult.status === 'COMPLETED' || 
+                  statusResult.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || 
+                  statusResult.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
+                completed = true;
+                
+                if (statusResult.videoUrl) {
+                  // Update history with completed video
+                  await storage.updateVideoHistoryFields(videoId, {
+                    videoUrl: statusResult.videoUrl,
+                    status: 'completed',
+                  });
+                  console.log(`[VEO Regenerate] Video ${videoId} completed successfully`);
+                }
+              } else if (statusResult.status === 'FAILED' || 
+                         statusResult.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+                completed = true;
+                await storage.updateVideoHistoryFields(videoId, { status: 'failed' });
+                console.error(`[VEO Regenerate] Video ${videoId} failed`);
+                
+                // Record token error
+                if (rotationToken) {
+                  storage.recordTokenError(rotationToken.id);
+                }
+              }
+            } catch (pollError) {
+              console.error(`[VEO Regenerate] Error polling status for ${videoId}:`, pollError);
+            }
+          }
+
+          // Timeout - mark as failed
+          if (!completed) {
+            console.error(`[VEO Regenerate] Video ${videoId} timed out after 4 minutes`);
+            await storage.updateVideoHistoryFields(videoId, { status: 'failed' });
+            
+            // Record token error for timeout
+            if (rotationToken) {
+              storage.recordTokenError(rotationToken.id);
+            }
+          }
+        } catch (bgError) {
+          console.error(`[VEO Regenerate] Background polling error for ${videoId}:`, bgError);
+        }
+      })();
+
       res.json({
         success: true,
         operationName,
         sceneId,
         videoId,
-        message: "Video regeneration started",
+        message: "Video regeneration started and will complete in background",
         tokenId: rotationToken?.id || null
       });
     } catch (error) {
