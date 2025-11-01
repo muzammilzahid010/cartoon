@@ -147,8 +147,7 @@ export default function Admin() {
       return videoDate.getTime() === today.getTime();
     });
     
-    if (todayVideos.length === 0) return null;
-    
+    // Always return stats, even with zeros
     return {
       total: todayVideos.length,
       completed: todayVideos.filter(v => v.status === 'completed').length,
@@ -184,7 +183,8 @@ export default function Admin() {
       }
     });
     
-    return Array.from(stats.values()).filter(s => s.total > 0);
+    // Return all tokens, even those with zero usage to highlight inactivity
+    return Array.from(stats.values());
   }, [allVideoHistory, tokensData]);
 
   useEffect(() => {
