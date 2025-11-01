@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 - **Multi-step Wizard**: Story Input → Generation → Review/Export.
-- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending, queued). Each video card shows the original prompt text. Regenerate button available for all videos (disabled only for queued videos).
+- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending, queued). Each video card shows the original prompt text. Regenerate button available for all videos (disabled only for queued videos). Auto-refreshes every 3 seconds when processing videos exist.
 - **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending, queued) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects, including title, date, scene count, character count, and video generation status. Detail view displays script, characters, merged video (if any), and scenes. Auto-saves projects after successful AI generation.
 
