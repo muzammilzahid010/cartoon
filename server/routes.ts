@@ -535,7 +535,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { status, videoUrl } = validationResult.data;
 
-      const updated = await storage.updateVideoHistoryStatus(id, userId, status, videoUrl);
+      // If video URL is provided and status is completed, upload to Cloudinary first
+      let finalVideoUrl = videoUrl;
+      if (videoUrl && status === 'completed') {
+        console.log(`[Video History Update] Uploading video ${id} to Cloudinary...`);
+        try {
+          finalVideoUrl = await uploadVideoToCloudinary(videoUrl);
+          console.log(`[Video History Update] Video ${id} uploaded to Cloudinary successfully`);
+        } catch (uploadError) {
+          console.error(`[Video History Update] Failed to upload video ${id} to Cloudinary:`, uploadError);
+          // Continue with original URL if Cloudinary upload fails
+          finalVideoUrl = videoUrl;
+        }
+      }
+
+      const updated = await storage.updateVideoHistoryStatus(id, userId, status, finalVideoUrl);
 
       if (!updated) {
         return res.status(404).json({ error: "Video history entry not found or access denied" });
@@ -999,9 +1013,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 completed = true;
                 
                 if (statusResult.videoUrl) {
-                  // Update history with completed video
+                  // Upload to Cloudinary before saving to history
+                  console.log(`[VEO Regenerate] Uploading video ${videoId} to Cloudinary...`);
+                  let cloudinaryUrl = statusResult.videoUrl;
+                  try {
+                    cloudinaryUrl = await uploadVideoToCloudinary(statusResult.videoUrl);
+                    console.log(`[VEO Regenerate] Video ${videoId} uploaded to Cloudinary successfully`);
+                  } catch (uploadError) {
+                    console.error(`[VEO Regenerate] Failed to upload video ${videoId} to Cloudinary:`, uploadError);
+                    // Continue with original VEO URL if Cloudinary upload fails
+                  }
+                  
+                  // Update history with completed video (using Cloudinary URL if successful)
                   await storage.updateVideoHistoryFields(videoId, {
-                    videoUrl: statusResult.videoUrl,
+                    videoUrl: cloudinaryUrl,
                     status: 'completed',
                   });
                   console.log(`[VEO Regenerate] Video ${videoId} completed successfully${hasRetriedWithNewToken ? ' (after token retry)' : ''}`);

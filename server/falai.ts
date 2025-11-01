@@ -1,6 +1,8 @@
 // fal.ai FFmpeg API integration for video merging
 // Uses fal-ai/ffmpeg-api/merge-videos model
 
+import { uploadVideoToCloudinary } from './cloudinary';
+
 interface FalMergeRequest {
   video_urls: string[];
 }
@@ -57,12 +59,23 @@ export async function mergeVideosWithFalAI(videoUrls: string[]): Promise<string>
       throw new Error('No video URL in fal.ai response');
     }
 
-    const mergedVideoUrl = data.video.url;
+    const falVideoUrl = data.video.url;
     console.log(`[fal.ai] Video merged successfully!`);
-    console.log(`[fal.ai] Merged video URL: ${mergedVideoUrl}`);
+    console.log(`[fal.ai] Merged video URL: ${falVideoUrl}`);
     console.log(`[fal.ai] File size: ${data.video.file_size} bytes`);
 
-    return mergedVideoUrl;
+    // Upload to Cloudinary for consistent storage
+    console.log(`[fal.ai] Uploading merged video to Cloudinary...`);
+    try {
+      const cloudinaryUrl = await uploadVideoToCloudinary(falVideoUrl);
+      console.log(`[fal.ai] Uploaded to Cloudinary successfully: ${cloudinaryUrl}`);
+      return cloudinaryUrl;
+    } catch (uploadError) {
+      console.error(`[fal.ai] Failed to upload to Cloudinary:`, uploadError);
+      // Return fal.ai URL if Cloudinary upload fails
+      console.log(`[fal.ai] Returning fal.ai URL as fallback`);
+      return falVideoUrl;
+    }
   } catch (error) {
     console.error(`[fal.ai] Error merging videos:`, error);
     throw new Error(`Failed to merge videos with fal.ai: ${error instanceof Error ? error.message : 'Unknown error'}`);
