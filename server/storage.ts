@@ -23,6 +23,15 @@ import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
 
+// Token error tracking: tokenId -> array of error timestamps
+const tokenErrorTracking = new Map<string, number[]>();
+// Token cooldown: tokenId -> cooldown end timestamp
+const tokenCooldowns = new Map<string, number>();
+
+const ERROR_THRESHOLD = 5; // Max errors allowed
+const ERROR_WINDOW_MS = 20 * 60 * 1000; // 20 minutes in milliseconds
+const COOLDOWN_DURATION_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+
 // Storage interface for user operations
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -43,6 +52,8 @@ export interface IStorage {
   getNextRotationToken(): Promise<ApiToken | undefined>;
   updateTokenUsage(tokenId: string): Promise<void>;
   replaceAllTokens(tokens: string[]): Promise<ApiToken[]>;
+  recordTokenError(tokenId: string): void;
+  isTokenInCooldown(tokenId: string): boolean;
   
   // Token settings
   getTokenSettings(): Promise<TokenSettings | undefined>;
@@ -193,7 +204,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(apiTokens.isActive, true))
       .orderBy(apiTokens.lastUsedAt);
     
-    return tokens[0] || undefined;
+    // Filter out tokens in cooldown or close to error threshold
+    // Use threshold-1 to prevent race conditions with concurrent requests
+    const SAFE_THRESHOLD = ERROR_THRESHOLD - 1;
+    
+    for (const token of tokens) {
+      if (this.isTokenInCooldown(token.id)) {
+        console.log(`[Token Rotation] Skipping token ${token.id} - in cooldown`);
+        continue;
+      }
+      
+      const errorCount = this.getRecentErrorCount(token.id);
+      if (errorCount >= SAFE_THRESHOLD) {
+        console.log(`[Token Rotation] Skipping token ${token.id} - ${errorCount}/${ERROR_THRESHOLD} errors (too close to threshold)`);
+        continue;
+      }
+      
+      return token;
+    }
+    
+    console.log('[Token Rotation] All active tokens are in cooldown or near error threshold');
+    return undefined;
   }
 
   async updateTokenUsage(tokenId: string): Promise<void> {
@@ -238,6 +269,59 @@ export class DatabaseStorage implements IStorage {
       
       return newTokens;
     });
+  }
+
+  recordTokenError(tokenId: string): void {
+    const now = Date.now();
+    
+    // Get or initialize error array for this token
+    const errors = tokenErrorTracking.get(tokenId) || [];
+    
+    // Add new error timestamp
+    errors.push(now);
+    
+    // Remove errors older than ERROR_WINDOW_MS (20 minutes)
+    const recentErrors = errors.filter(timestamp => now - timestamp < ERROR_WINDOW_MS);
+    
+    tokenErrorTracking.set(tokenId, recentErrors);
+    
+    // Check if we've exceeded the threshold
+    if (recentErrors.length >= ERROR_THRESHOLD) {
+      const cooldownEnd = now + COOLDOWN_DURATION_MS;
+      tokenCooldowns.set(tokenId, cooldownEnd);
+      console.log(`[Token Error Tracking] Token ${tokenId} exceeded ${ERROR_THRESHOLD} errors in 20 minutes. Disabled for 1 hour until ${new Date(cooldownEnd).toISOString()}`);
+    } else {
+      console.log(`[Token Error Tracking] Recorded error for token ${tokenId}. ${recentErrors.length}/${ERROR_THRESHOLD} errors in last 20 minutes`);
+    }
+  }
+
+  isTokenInCooldown(tokenId: string): boolean {
+    const cooldownEnd = tokenCooldowns.get(tokenId);
+    
+    if (!cooldownEnd) {
+      return false;
+    }
+    
+    const now = Date.now();
+    
+    // Check if cooldown has expired
+    if (now >= cooldownEnd) {
+      tokenCooldowns.delete(tokenId);
+      tokenErrorTracking.delete(tokenId);
+      console.log(`[Token Error Tracking] Token ${tokenId} cooldown expired. Re-enabled.`);
+      return false;
+    }
+    
+    return true;
+  }
+
+  getRecentErrorCount(tokenId: string): number {
+    const errors = tokenErrorTracking.get(tokenId) || [];
+    const now = Date.now();
+    
+    // Count errors within the last 20 minutes
+    const recentErrors = errors.filter(timestamp => now - timestamp < ERROR_WINDOW_MS);
+    return recentErrors.length;
   }
 
   // Token settings methods

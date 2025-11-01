@@ -210,9 +210,9 @@ export default function BulkGenerator() {
           throw new Error('Video generation timed out');
         }
 
-        // Add 5-second delay between requests (except for last video)
+        // Add 20-second delay between requests (except for last video)
         if (i < promptLines.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise(resolve => setTimeout(resolve, 20000));
         }
 
       } catch (error: any) {

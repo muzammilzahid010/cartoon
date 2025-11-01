@@ -582,6 +582,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate VEO video directly from prompt
   app.post("/api/generate-veo-video", async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
     try {
       const schema = z.object({
         prompt: z.string().min(10, "Prompt must be at least 10 characters"),
@@ -601,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
-      const rotationToken = await storage.getNextRotationToken();
+      rotationToken = await storage.getNextRotationToken();
       
       if (rotationToken) {
         apiKey = rotationToken.token;
@@ -673,6 +675,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in /api/generate-veo-video:", error);
+      
+      // Record token error if we used a rotation token
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
       res.status(500).json({ 
         error: "Failed to start video generation",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -682,6 +690,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Start video generation for a scene
   app.post("/api/generate-video", async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
     try {
       const schema = z.object({
         scene: z.object({
@@ -705,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
-      const rotationToken = await storage.getNextRotationToken();
+      rotationToken = await storage.getNextRotationToken();
       
       if (rotationToken) {
         apiKey = rotationToken.token;
@@ -736,6 +746,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in /api/generate-video:", error);
+      
+      // Record token error if we used a rotation token
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
       res.status(500).json({ 
         error: "Failed to start video generation",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -745,6 +761,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Regenerate a failed video from history
   app.post("/api/regenerate-video", requireAuth, async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
     try {
       const userId = req.session.userId;
       if (!userId) {
@@ -781,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
-      const rotationToken = await storage.getNextRotationToken();
+      rotationToken = await storage.getNextRotationToken();
       
       if (rotationToken) {
         apiKey = rotationToken.token;
@@ -838,6 +856,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!response.ok) {
         console.error('[VEO Regenerate] Error response:', data);
         await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+        
+        // Record token error if we used a rotation token
+        if (rotationToken) {
+          storage.recordTokenError(rotationToken.id);
+        }
+        
         return res.status(500).json({ 
           error: "VEO API error",
           details: data 
@@ -846,6 +870,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!data.operations || data.operations.length === 0) {
         await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+        
+        // Record token error if we used a rotation token
+        if (rotationToken) {
+          storage.recordTokenError(rotationToken.id);
+        }
+        
         return res.status(500).json({ error: "No operations returned from VEO API" });
       }
 
@@ -864,6 +894,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in /api/regenerate-video:", error);
+      
+      // Record token error if we used a rotation token
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
       res.status(500).json({ 
         error: "Failed to regenerate video",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -873,6 +909,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Check video generation status
   app.post("/api/check-video-status", async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
     try {
       const schema = z.object({
         operationName: z.string(),
@@ -892,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
-      const rotationToken = await storage.getNextRotationToken();
+      rotationToken = await storage.getNextRotationToken();
       
       if (rotationToken) {
         apiKey = rotationToken.token;
@@ -910,6 +948,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const status = await checkVideoStatus(operationName, sceneId, apiKey);
+
+      // Record token error if video generation failed
+      if (status.status === 'FAILED' || status.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+        if (rotationToken) {
+          storage.recordTokenError(rotationToken.id);
+        }
+      }
 
       // If video is completed, handle Cloudinary upload with caching
       if (status.videoUrl && (status.status === 'COMPLETED' || status.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || status.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL')) {
@@ -948,6 +993,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(status);
     } catch (error) {
       console.error("Error in /api/check-video-status:", error);
+      
+      // Record token error if we used a rotation token
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
       res.status(500).json({ 
         error: "Failed to check video status",
         message: error instanceof Error ? error.message : "Unknown error"
