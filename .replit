@@ -7,7 +7,7 @@ channel = "stable-24_05"
 packages = ["ffmpeg"]
 
 [deployment]
-deploymentTarget = "static"
+deploymentTarget = "cloudrun"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 publicDir = "dist"
