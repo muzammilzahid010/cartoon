@@ -10,7 +10,6 @@ packages = ["ffmpeg"]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
-publicDir = "dist"
 
 [[ports]]
 localPort = 5000
@@ -31,10 +30,6 @@ externalPort = 3001
 [[ports]]
 localPort = 41027
 externalPort = 3002
-
-[[ports]]
-localPort = 45731
-externalPort = 3000
 
 [env]
 PORT = "5000"
