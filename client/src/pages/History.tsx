@@ -104,6 +104,29 @@ export default function History() {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
+  // Calculate today's statistics
+  const getTodayStats = () => {
+    if (!data?.videos) return { total: 0, completed: 0, failed: 0, pending: 0 };
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayVideos = data.videos.filter(video => {
+      const videoDate = new Date(video.createdAt);
+      videoDate.setHours(0, 0, 0, 0);
+      return videoDate.getTime() === today.getTime();
+    });
+    
+    return {
+      total: todayVideos.length,
+      completed: todayVideos.filter(v => v.status === 'completed').length,
+      failed: todayVideos.filter(v => v.status === 'failed').length,
+      pending: todayVideos.filter(v => v.status === 'pending').length,
+    };
+  };
+
+  const todayStats = getTodayStats();
+
   const handleDownload = (videoUrl: string) => {
     window.open(videoUrl, '_blank');
   };
@@ -362,6 +385,47 @@ export default function History() {
             View, download, regenerate, and merge your cartoon videos
           </p>
         </div>
+
+        {/* Today's Statistics Card */}
+        {todayStats.total > 0 && (
+          <Card className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
+            <CardHeader className="p-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                Today's Generation Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.total}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Videos</div>
+                </div>
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-1">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">{todayStats.completed}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Successful</div>
+                </div>
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-1">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    <span className="text-2xl font-bold text-red-600 dark:text-red-400">{todayStats.failed}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Failed</div>
+                </div>
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-1">
+                    <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{todayStats.pending}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Pending</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="flex justify-center items-center py-12 sm:py-20">
