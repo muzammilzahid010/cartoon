@@ -108,11 +108,20 @@ export class ObjectStorageService {
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
 
-    await file.save(createReadStream(localFilePath), {
-      metadata: {
-        contentType: "video/mp4",
-      },
-      public: true,
+    // Use pipeline to stream file to object storage
+    await new Promise<void>((resolve, reject) => {
+      const readStream = createReadStream(localFilePath);
+      const writeStream = file.createWriteStream({
+        metadata: {
+          contentType: "video/mp4",
+        },
+        public: true,
+      });
+
+      readStream
+        .pipe(writeStream)
+        .on('error', reject)
+        .on('finish', resolve);
     });
 
     console.log(`[Object Storage] Upload complete`);
@@ -134,15 +143,24 @@ export class ObjectStorageService {
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
 
-    await file.save(createReadStream(localFilePath), {
-      metadata: {
-        contentType: "video/mp4",
+    // Use pipeline to stream file to object storage
+    await new Promise<void>((resolve, reject) => {
+      const readStream = createReadStream(localFilePath);
+      const writeStream = file.createWriteStream({
         metadata: {
-          expiresAt: expiryDate.toISOString(),
-          isTemporary: "true",
+          contentType: "video/mp4",
+          metadata: {
+            expiresAt: expiryDate.toISOString(),
+            isTemporary: "true",
+          },
         },
-      },
-      public: true,
+        public: true,
+      });
+
+      readStream
+        .pipe(writeStream)
+        .on('error', reject)
+        .on('finish', resolve);
     });
 
     console.log(`[Object Storage] Temporary video upload complete`);
