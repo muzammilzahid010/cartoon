@@ -29,10 +29,14 @@ Preferred communication style: Simple, everyday language.
 - **Token Usage Tracking**: Video history now includes `tokenUsed` field to track which API token generated each video, enabling per-token analytics and performance monitoring.
 
 ### UI/UX Decisions
+- **Design System**: Professional gradient-based design (purple/blue color palette), NO images used - all visuals are CSS gradients, icons, and animations. Smooth CSS animations (fadeIn, slideUp, scaleIn) with staggered delays. Glass-morphism effects and hover-lift interactions throughout. Fully mobile-responsive with Tailwind breakpoints.
 - **Multi-step Wizard**: Story Input → Generation → Review/Export.
+- **Hero Section**: Animated gradient background with icon badge, feature cards showcasing AI Scene Generation, VEO 3.1, and Pixar-Style Animation capabilities. Prominent CTA button with smooth animations.
 - **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending, queued). Each video card shows the original prompt text. Regenerate button available for all videos (disabled only for queued videos). Auto-refreshes every 3 seconds when processing videos exist.
 - **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending, queued) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects, including title, date, scene count, character count, and video generation status. Detail view displays script, characters, merged video (if any), and scenes. Auto-saves projects after successful AI generation.
+- **VEO Generator Page**: Professional card design with gradient icon badges, enhanced input fields with focus rings, improved aspect ratio selection with hover states, gradient buttons with animations. Fully mobile-responsive.
+- **Bulk Generator Page**: Professional gradient design with icon badges, progress tracking with visual indicators, "Ready" status badge, enhanced mobile responsiveness.
 
 ### Technical Implementations
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
