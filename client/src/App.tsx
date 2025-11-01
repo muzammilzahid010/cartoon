@@ -7,6 +7,7 @@ import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Admin from "@/pages/Admin";
 import VeoGenerator from "@/pages/VeoGenerator";
+import BulkGenerator from "@/pages/BulkGenerator";
 import History from "@/pages/History";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/admin" component={Admin} />
       <Route path="/veo-generator" component={VeoGenerator} />
+      <Route path="/bulk-generator" component={BulkGenerator} />
       <Route path="/history" component={History} />
       <Route path="/projects" component={Projects} />
       <Route path="/projects/:id" component={ProjectDetail} />

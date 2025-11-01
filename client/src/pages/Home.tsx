@@ -12,7 +12,7 @@ import ScenesDisplay from "@/components/ScenesDisplay";
 import VideoGenerationProgress from "@/components/VideoGenerationProgress";
 import VideosDisplay from "@/components/VideosDisplay";
 import type { StoryInput, Scene } from "@shared/schema";
-import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film } from "lucide-react";
+import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Layers } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -495,6 +495,12 @@ export default function Home() {
                   <DropdownMenuItem data-testid="menu-veo-generator">
                     <PlayCircle className="w-4 h-4 mr-2" />
                     Gen VEO 3.1 Video
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/bulk-generator">
+                  <DropdownMenuItem data-testid="menu-bulk-generator">
+                    <Layers className="w-4 h-4 mr-2" />
+                    Bulk Video Generator
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/history">
