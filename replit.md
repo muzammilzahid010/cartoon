@@ -30,13 +30,16 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 - **Multi-step Wizard**: Story Input → Generation → Review/Export.
-- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending).
-- **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
+- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending, queued). Each video card shows the original prompt text. Regenerate button available for all videos (disabled only for queued videos).
+- **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending, queued) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects, including title, date, scene count, character count, and video generation status. Detail view displays script, characters, merged video (if any), and scenes. Auto-saves projects after successful AI generation.
 
 ### Technical Implementations
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control.
+- **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout.
+- **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Ensures all videos appear in history even if user reloads page during generation.
+- **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
 - **Video Merging**: fal.ai FFmpeg API (`fal-ai/ffmpeg-api/merge-videos`) for cloud-based video merging. No local FFmpeg processing required.
 
 ## External Dependencies
