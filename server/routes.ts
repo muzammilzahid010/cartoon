@@ -1175,25 +1175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { scenes, characters, projectId } = validationResult.data;
       
-      // Get API key from token rotation system or fallback to environment variable
-      let apiKey: string | undefined;
-      const rotationToken = await storage.getNextRotationToken();
-      
-      if (rotationToken) {
-        apiKey = rotationToken.token;
-        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
-        await storage.updateTokenUsage(rotationToken.id);
-      } else {
-        apiKey = process.env.VEO3_API_KEY;
-        console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
-      }
-
-      if (!apiKey) {
-        return res.status(500).json({ 
-          error: "No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable." 
-        });
-      }
-
       const veoProjectId = projectId || process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
 
       // Set headers for SSE (Server-Sent Events) to stream progress
@@ -1211,13 +1192,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const videos = [];
-      const operations: Array<{ operationName: string; sceneId: string; scene: any }> = [];
+      const operations: Array<{ operationName: string; sceneId: string; scene: any; apiKey: string; rotationToken?: Awaited<ReturnType<typeof storage.getNextRotationToken>> }> = [];
 
-      // STEP 1: Start all video generation requests quickly (1 second delay to avoid rate limits)
+      // STEP 1: Start all video generation requests - each scene gets its own token
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
+        let sceneRotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
         
         try {
+          // Get a DIFFERENT API key for EACH scene from token rotation system
+          let sceneApiKey: string | undefined;
+          sceneRotationToken = await storage.getNextRotationToken();
+          
+          if (sceneRotationToken) {
+            sceneApiKey = sceneRotationToken.token;
+            console.log(`[Token Rotation] Scene ${scene.scene}: Using token ${sceneRotationToken.label} (ID: ${sceneRotationToken.id})`);
+            await storage.updateTokenUsage(sceneRotationToken.id);
+          } else {
+            sceneApiKey = process.env.VEO3_API_KEY;
+            console.log(`[Token Rotation] Scene ${scene.scene}: No active tokens found, using environment variable VEO3_API_KEY`);
+          }
+
+          if (!sceneApiKey) {
+            throw new Error("No API key configured. Please add tokens in the admin panel or set VEO3_API_KEY environment variable.");
+          }
+
           // Send starting update
           sendSSE({ 
             type: 'progress', 
@@ -1225,14 +1224,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             total: scenes.length,
             sceneNumber: scene.scene,
             status: 'starting',
-            message: 'Submitting request to VEO API...',
+            message: `Submitting request to VEO API${sceneRotationToken ? ` using token: ${sceneRotationToken.label}` : ''}...`,
             timestamp: new Date().toISOString()
           });
 
-          // Start video generation with character context
-          const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, apiKey, characters);
+          // Start video generation with character context using this scene's token
+          const { operationName, sceneId } = await generateVideoForScene(scene, veoProjectId, sceneApiKey, characters);
           
-          operations.push({ operationName, sceneId, scene });
+          operations.push({ operationName, sceneId, scene, apiKey: sceneApiKey, rotationToken: sceneRotationToken });
 
           // Send request sent update
           sendSSE({ 
@@ -1255,6 +1254,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           console.error(`Error starting video generation for scene ${scene.scene}:`, error);
           
+          // Record token error if we used a rotation token for this scene
+          if (sceneRotationToken) {
+            storage.recordTokenError(sceneRotationToken.id);
+          }
+          
           videos.push({
             sceneNumber: scene.scene,
             sceneTitle: scene.title,
@@ -1271,7 +1275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // STEP 2: Now poll for completion of all started operations
+      // STEP 2: Now poll for completion of all started operations using each scene's token
       for (const op of operations) {
         try {
           sendSSE({ 
@@ -1282,11 +1286,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString()
           });
 
-          // Wait for completion with periodic status updates
+          // Wait for completion with periodic status updates using this scene's specific token
           const result = await waitForVideoCompletionWithUpdates(
             op.operationName, 
             op.sceneId, 
-            apiKey,
+            op.apiKey, // Use the token that was used to start this specific scene
             (status: string) => {
               // Send periodic status updates during polling
               sendSSE({ 
@@ -1336,6 +1340,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         } catch (error) {
           console.error(`Error waiting for video completion for scene ${op.scene.scene}:`, error);
+          
+          // Record token error if we used a rotation token for this scene
+          if (op.rotationToken) {
+            storage.recordTokenError(op.rotationToken.id);
+          }
           
           videos.push({
             sceneNumber: op.scene.scene,
