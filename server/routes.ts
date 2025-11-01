@@ -1043,7 +1043,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sceneId,
         videoId,
         message: "Video regeneration started and will complete in background",
-        tokenId: rotationToken?.id || null
+        tokenId: rotationToken?.id || null,
+        tokenLabel: rotationToken?.label || null
       });
     } catch (error) {
       console.error("Error in /api/regenerate-video:", error);

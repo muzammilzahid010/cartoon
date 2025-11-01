@@ -17,6 +17,7 @@ interface VideoGenerationStatus {
   status: "pending" | "processing" | "completed" | "failed";
   videoUrl?: string;
   error?: string;
+  tokenLabel?: string | null;
 }
 
 export default function BulkGenerator() {
@@ -166,7 +167,13 @@ export default function BulkGenerator() {
           );
           failedToStartCount++;
         } else {
-          console.log(`Started video ${i + 1} generation - will complete in background`);
+          console.log(`Started video ${i + 1} generation with token: ${result.tokenLabel || 'N/A'} - will complete in background`);
+          // Update progress with token label information
+          setGenerationProgress(prev => 
+            prev.map((item, idx) => 
+              idx === i ? { ...item, tokenLabel: result.tokenLabel } : item
+            )
+          );
           startedCount++;
         }
 
@@ -429,9 +436,16 @@ export default function BulkGenerator() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                            Video {index + 1}
-                          </p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Video {index + 1}
+                            </p>
+                            {video.tokenLabel && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                {video.tokenLabel}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                             {video.prompt}
                           </p>
