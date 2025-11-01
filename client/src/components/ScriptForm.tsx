@@ -46,12 +46,12 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
         <div>
           <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-            <h2 className="text-2xl sm:text-3xl font-bold">Project Details</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white">Project Details</h2>
           </div>
           
           <div className="mb-6">
-            <Label htmlFor="title" className="text-sm sm:text-base">
-              Project Title <span className="text-muted-foreground text-xs">(Optional)</span>
+            <Label htmlFor="title" className="text-sm sm:text-base text-gray-200">
+              Project Title <span className="text-gray-400 text-xs">(Optional)</span>
             </Label>
             <Input
               id="title"
@@ -61,20 +61,20 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
               className="mt-2 text-sm sm:text-base"
               data-testid="input-title"
             />
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+            <p className="text-xs sm:text-sm text-gray-400 mt-2">
               If left empty, a default title will be generated
             </p>
           </div>
 
           <div className="mb-3 sm:mb-4">
-            <h3 className="text-xl sm:text-2xl font-semibold">Story Script</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold text-white">Story Script</h3>
           </div>
-          <p className="text-sm sm:text-base text-muted-foreground mb-4">
+          <p className="text-sm sm:text-base text-gray-300 mb-4">
             Enter your complete story script. The AI will break it down into detailed scenes.
           </p>
           
           <div>
-            <Label htmlFor="script" className="text-sm sm:text-base">
+            <Label htmlFor="script" className="text-sm sm:text-base text-gray-200">
               Script <span className="text-destructive">*</span>
             </Label>
             <Textarea
@@ -85,7 +85,7 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
               className="min-h-[250px] sm:min-h-[300px] mt-2 text-sm sm:text-base"
               data-testid="input-script"
             />
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+            <p className="text-xs sm:text-sm text-gray-400 mt-2">
               {script.length} characters (minimum 50 required)
             </p>
           </div>
@@ -93,7 +93,7 @@ export default function ScriptForm({ onSubmit }: ScriptFormProps) {
 
         <div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold">Characters</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Characters</h2>
             <Button
               type="button"
               variant="outline"

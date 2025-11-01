@@ -13,7 +13,7 @@ interface ProgressStepperProps {
 
 export default function ProgressStepper({ currentStep, steps }: ProgressStepperProps) {
   return (
-    <div className="sticky top-0 z-40 bg-background border-b border-border">
+    <div className="sticky top-0 z-40 bg-[#1e2838]/90 dark:bg-[#181e2a]/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => {
@@ -30,7 +30,7 @@ export default function ProgressStepper({ currentStep, steps }: ProgressStepperP
                         relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-2 transition-all
                         ${isCompleted ? "bg-primary border-primary text-primary-foreground" : ""}
                         ${isCurrent ? "bg-primary border-primary text-primary-foreground scale-110" : ""}
-                        ${isUpcoming ? "bg-background border-border text-muted-foreground" : ""}
+                        ${isUpcoming ? "bg-white/5 border-white/20 text-gray-400" : ""}
                       `}
                       data-testid={`step-indicator-${step.id}`}
                     >
@@ -45,7 +45,7 @@ export default function ProgressStepper({ currentStep, steps }: ProgressStepperP
                       <div className="flex-1 h-0.5 mx-2">
                         <div 
                           className={`h-full transition-all ${
-                            isCompleted ? "bg-primary" : "bg-border"
+                            isCompleted ? "bg-primary" : "bg-white/20"
                           }`}
                         />
                       </div>
@@ -53,10 +53,10 @@ export default function ProgressStepper({ currentStep, steps }: ProgressStepperP
                   </div>
                   
                   <div className="mt-3 text-center hidden md:block">
-                    <div className={`text-sm font-semibold ${isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
+                    <div className={`text-sm font-semibold ${isCurrent ? "text-white" : "text-gray-300"}`}>
                       {step.title}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="text-xs text-gray-400 mt-1">
                       {step.description}
                     </div>
                   </div>

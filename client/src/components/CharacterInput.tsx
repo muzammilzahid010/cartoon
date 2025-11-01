@@ -20,13 +20,13 @@ export default function CharacterInput({
   canRemove 
 }: CharacterInputProps) {
   return (
-    <Card className="p-6 relative">
+    <Card className="p-6 relative bg-[#1e2838] dark:bg-[#181e2a] border-white/10">
       {canRemove && (
         <Button
           type="button"
           size="icon"
           variant="ghost"
-          className="absolute top-4 right-4"
+          className="absolute top-4 right-4 text-gray-300 hover:text-white hover:bg-white/10"
           onClick={onRemove}
           data-testid={`button-remove-character-${character.id}`}
         >
@@ -36,12 +36,12 @@ export default function CharacterInput({
       
       <div className="flex items-center gap-2 mb-4">
         <User className="w-5 h-5 text-primary" />
-        <h3 className="text-lg font-semibold">Character Details</h3>
+        <h3 className="text-lg font-semibold text-white">Character Details</h3>
       </div>
       
       <div className="space-y-4">
         <div>
-          <Label htmlFor={`character-name-${character.id}`}>
+          <Label htmlFor={`character-name-${character.id}`} className="text-gray-200">
             Character Name <span className="text-destructive">*</span>
           </Label>
           <Input
@@ -55,7 +55,7 @@ export default function CharacterInput({
         </div>
         
         <div>
-          <Label htmlFor={`character-description-${character.id}`}>
+          <Label htmlFor={`character-description-${character.id}`} className="text-gray-200">
             Character Description <span className="text-destructive">*</span>
           </Label>
           <Textarea
