@@ -17,6 +17,7 @@ import {
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
+import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
 import { desc } from "drizzle-orm";
 import path from "path";
@@ -534,21 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { status, videoUrl } = validationResult.data;
 
-      // If video URL is provided and status is completed, upload to Cloudinary first
-      let finalVideoUrl = videoUrl;
-      if (videoUrl && status === 'completed') {
-        console.log(`[Video History Update] Uploading video ${id} to Cloudinary...`);
-        try {
-          finalVideoUrl = await uploadVideoToCloudinary(videoUrl);
-          console.log(`[Video History Update] Video ${id} uploaded to Cloudinary successfully`);
-        } catch (uploadError) {
-          console.error(`[Video History Update] Failed to upload video ${id} to Cloudinary:`, uploadError);
-          // Continue with original URL if Cloudinary upload fails
-          finalVideoUrl = videoUrl;
-        }
-      }
-
-      const updated = await storage.updateVideoHistoryStatus(id, userId, status, finalVideoUrl);
+      const updated = await storage.updateVideoHistoryStatus(id, userId, status, videoUrl);
 
       if (!updated) {
         return res.status(404).json({ error: "Video history entry not found or access denied" });
@@ -1012,20 +999,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 completed = true;
                 
                 if (statusResult.videoUrl) {
-                  // Upload to Cloudinary before saving to history
-                  console.log(`[VEO Regenerate] Uploading video ${videoId} to Cloudinary...`);
-                  let cloudinaryUrl = statusResult.videoUrl;
-                  try {
-                    cloudinaryUrl = await uploadVideoToCloudinary(statusResult.videoUrl);
-                    console.log(`[VEO Regenerate] Video ${videoId} uploaded to Cloudinary successfully`);
-                  } catch (uploadError) {
-                    console.error(`[VEO Regenerate] Failed to upload video ${videoId} to Cloudinary:`, uploadError);
-                    // Continue with original VEO URL if Cloudinary upload fails
-                  }
-                  
-                  // Update history with completed video (using Cloudinary URL if successful)
+                  // Update history with completed video
                   await storage.updateVideoHistoryFields(videoId, {
-                    videoUrl: cloudinaryUrl,
+                    videoUrl: statusResult.videoUrl,
                     status: 'completed',
                   });
                   console.log(`[VEO Regenerate] Video ${videoId} completed successfully${hasRetriedWithNewToken ? ' (after token retry)' : ''}`);
@@ -1444,18 +1420,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[Merge Videos] Starting merge of ${videos.length} videos using FFmpeg`);
+      console.log(`[Merge Videos] Starting merge of ${videos.length} videos using fal.ai`);
 
       // Sort videos by scene number before merging to ensure correct sequence
       const sortedVideos = [...videos].sort((a, b) => a.sceneNumber - b.sceneNumber);
       const videoUrls = sortedVideos.map(v => v.videoUrl);
 
-      // Import the FFmpeg merger function
-      const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
-      
-      // Merge videos using local FFmpeg
-      const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
-      console.log(`[Merge Videos] Videos merged successfully with FFmpeg`);
+      // Merge videos using fal.ai API
+      const mergedVideoUrl = await mergeVideosWithFalAI(videoUrls);
+      console.log(`[Merge Videos] Videos merged successfully with fal.ai`);
       console.log(`[Merge Videos] Merged video URL: ${mergedVideoUrl}`);
 
       // Save merged video URL to project if projectId provided

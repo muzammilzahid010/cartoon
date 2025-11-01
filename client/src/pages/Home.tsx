@@ -473,128 +473,97 @@ export default function Home() {
     }
   };
 
-  const handleBackToHome = () => {
-    setCurrentStep(0);
-    setStoryInput(null);
-    setScenes([]);
-    setVideoProgress([]);
-    setGeneratedVideos([]);
-    setCurrentVideoScene(0);
-    setSceneGenerationError(null);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230]">
-      {currentStep === 0 ? (
-        <>
-          {/* Hero page header */}
-          <header className="border-b border-white/10 bg-white/5 dark:bg-gray-900/20 sticky top-0 z-50 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center gap-2">
-              <div className="flex items-center gap-1 sm:gap-3 flex-1 min-w-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" data-testid="button-menu" className="shrink-0 text-white hover:bg-white/10">
-                      <Menu className="w-5 h-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <Link href="/">
-                      <DropdownMenuItem data-testid="menu-cartoon-generator">
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Cartoon Story Generator
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/veo-generator">
-                      <DropdownMenuItem data-testid="menu-veo-generator">
-                        <PlayCircle className="w-4 h-4 mr-2" />
-                        VEO 3.1 Video Generator
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/bulk-generator">
-                      <DropdownMenuItem data-testid="menu-bulk-generator">
-                        <Layers className="w-4 h-4 mr-2" />
-                        Bulk Video Generator
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/projects">
-                      <DropdownMenuItem data-testid="menu-projects">
-                        <Film className="w-4 h-4 mr-2" />
-                        My Projects
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/history">
-                      <DropdownMenuItem data-testid="menu-history">
-                        <HistoryIcon className="w-4 h-4 mr-2" />
-                        Video History
-                      </DropdownMenuItem>
-                    </Link>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <h1 className="text-sm sm:text-base md:text-lg font-semibold text-white truncate">
-                  <span className="hidden sm:inline">Cartoon Story Video Generator</span>
-                  <span className="sm:hidden">Story Generator</span>
-                </h1>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                {session?.authenticated ? (
-                  <>
-                    <div className="hidden md:flex items-center gap-2 text-sm text-gray-300">
-                      <User className="w-4 h-4" />
-                      <span className="text-white">{session.user?.username}</span>
-                    </div>
-                    {session.user?.isAdmin && (
-                      <Link href="/admin">
-                        <Button variant="outline" size="sm" data-testid="link-admin" className="border-white/20 text-white hover:bg-white/10 hidden sm:inline-flex">
-                          <Shield className="w-4 h-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Admin</span>
-                        </Button>
-                      </Link>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => logoutMutation.mutate()}
-                      disabled={logoutMutation.isPending}
-                      data-testid="button-header-logout"
-                      className="border-white/20 text-white hover:bg-white/10"
-                    >
-                      <LogOut className="w-4 h-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Logout</span>
-                    </Button>
-                  </>
-                ) : (
-                  <Link href="/login">
-                    <Button variant="outline" size="sm" data-testid="link-login" className="border-white/20 text-white hover:bg-white/10">
-                      <LogIn className="w-4 h-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Login</span>
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-3 flex-1 min-w-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" data-testid="button-menu" className="shrink-0">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <Link href="/">
+                  <DropdownMenuItem data-testid="menu-cartoon-generator">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Cartoon Story Generator
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/veo-generator">
+                  <DropdownMenuItem data-testid="menu-veo-generator">
+                    <PlayCircle className="w-4 h-4 mr-2" />
+                    VEO 3.1 Video Generator
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/bulk-generator">
+                  <DropdownMenuItem data-testid="menu-bulk-generator">
+                    <Layers className="w-4 h-4 mr-2" />
+                    Bulk Video Generator
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/projects">
+                  <DropdownMenuItem data-testid="menu-projects">
+                    <Film className="w-4 h-4 mr-2" />
+                    My Projects
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/history">
+                  <DropdownMenuItem data-testid="menu-history">
+                    <HistoryIcon className="w-4 h-4 mr-2" />
+                    Video History
+                  </DropdownMenuItem>
+                </Link>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <h1 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white truncate">
+              <span className="hidden sm:inline">Cartoon Story Video Generator</span>
+              <span className="sm:hidden">Story Generator</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {session?.authenticated ? (
+              <>
+                <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span className="text-gray-900 dark:text-white">{session.user?.username}</span>
+                </div>
+                {session.user?.isAdmin && (
+                  <Link href="/admin">
+                    <Button variant="outline" size="sm" data-testid="link-admin" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 hidden sm:inline-flex">
+                      <Shield className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Admin</span>
                     </Button>
                   </Link>
                 )}
-              </div>
-            </div>
-          </header>
-          <Hero onGetStarted={handleGetStarted} />
-        </>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoutMutation.mutate()}
+                  disabled={logoutMutation.isPending}
+                  data-testid="button-header-logout"
+                  className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <LogOut className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" size="sm" data-testid="link-login" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                  <LogIn className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Login</span>
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+      {currentStep === 0 ? (
+        <Hero onGetStarted={handleGetStarted} />
       ) : (
         <>
-          {/* Wizard pages header (steps 1-5) */}
-          <header className="border-b border-white/10 bg-[#1c2534]/80 dark:bg-[#161c28]/80 backdrop-blur-md sticky top-0 z-50 shadow-xl">
-            <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-              <h1 className="text-base sm:text-lg md:text-xl font-bold text-white">
-                {STEPS[currentStep - 1]?.title || 'Cartoon Story Generator'}
-              </h1>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleBackToHome}
-                className="hover-lift border-white/20 text-white hover:bg-white/10" 
-                data-testid="button-back-home"
-              >
-                <Home className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Home</span>
-              </Button>
-            </div>
-          </header>
           <ProgressStepper currentStep={currentStep} steps={STEPS} />
           
           {currentStep === 1 && <ScriptForm onSubmit={handleFormSubmit} />}

@@ -29,7 +29,7 @@ Preferred communication style: Simple, everyday language.
 - **Token Usage Tracking**: Video history now includes `tokenUsed` field to track which API token generated each video, enabling per-token analytics and performance monitoring.
 
 ### UI/UX Decisions
-- **Design System**: Professional dark navy gradient theme (`bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f]`) with purple accent buttons (#7C3AED / hsl(262 83% 58%)), NO images used - all visuals are CSS gradients, icons, and animations. Smooth CSS animations (fadeIn, slideUp, scaleIn) with staggered delays. Glass-morphism effects and hover-lift interactions throughout. Fully mobile-responsive with Tailwind breakpoints. **Consistent styling across all pages**: All pages (Home, VEO Generator, Bulk Generator, History, Projects, Cartoon Wizard) use the same navy gradient background with consistent header design featuring sticky navigation and "Home" button for easy navigation.
+- **Design System**: Professional dark navy theme (hue 218-220, #1a2332 background) with purple accent buttons (#7C3AED / hsl(262 83% 58%)), NO images used - all visuals are CSS gradients, icons, and animations. Smooth CSS animations (fadeIn, slideUp, scaleIn) with staggered delays. Glass-morphism effects and hover-lift interactions throughout. Fully mobile-responsive with Tailwind breakpoints. Light/dark modes both use navy palette with proper contrast.
 - **Multi-step Wizard**: Story Input → Generation → Review/Export.
 - **Hero Section**: Dark navy gradient background (#1a2332 to #242d3f) with icon badge, comprehensive "Complete Video Production Suite" description featuring all 4 tools (Cartoon Story Generator, VEO 3.1 Video Generator, Bulk Video Generator, Video History & Projects), feature cards showcasing AI Scene Generation, VEO 3.1, and Pixar-Style Animation capabilities. Purple accent CTA button with smooth animations.
 - **Navigation**: Hamburger menu includes all tools in logical order - Cartoon Story Generator (first), VEO 3.1 Video Generator, Bulk Video Generator, My Projects, Video History.
@@ -46,14 +46,14 @@ Preferred communication style: Simple, everyday language.
 - **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts.
-- **Video Merging**: Uses local FFmpeg processing for all video merging operations: (1) **Cartoon Projects**: Downloads project scenes, merges using FFmpeg concat demuxer, uploads to Cloudinary. (2) **History Selection**: User-selected videos (up to 19). Both approaches download videos, merge using FFmpeg concat demuxer, upload result to Cloudinary, and clean up temp files. Security enforced via video ID verification and ownership checks.
+- **Video Merging**: Two approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API (`fal-ai/ffmpeg-api/merge-videos`) for cloud-based merging of project scenes. (2) **History Selection**: Local FFmpeg processing for user-selected videos (up to 19). Downloads videos, merges using FFmpeg concat demuxer, uploads result to Cloudinary, and cleans up temp files. Security enforced via video ID verification and ownership checks.
 
 ## External Dependencies
 
 - **AI Service**: Google Gemini AI (gemini-2.5-flash model)
 - **Video Generation**: VEO 3 API
 - **Database**: Neon PostgreSQL (via `@neondatabase/serverless`), Drizzle ORM
-- **Video Storage**: Cloudinary for all video storage (individual scenes and merged videos).
-- **System Dependency**: FFmpeg (for video processing and merging)
+- **Video Storage**: fal.ai API for merged video hosting (auto-generated URL), Cloudinary for individual scene video storage.
+- **System Dependency**: FFmpeg (for video processing)
 
-**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
+**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
