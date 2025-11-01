@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { Home, Download, Calendar, Film, Loader2, RefreshCw, Merge, Play, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Home, Download, Calendar, Film, Loader2, RefreshCw, Merge, Play, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { VideoHistory, Scene } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -106,7 +106,7 @@ export default function History() {
 
   // Calculate today's statistics
   const getTodayStats = () => {
-    if (!data?.videos) return { total: 0, completed: 0, failed: 0, pending: 0 };
+    if (!data?.videos) return { total: 0, completed: 0, failed: 0, pending: 0, queued: 0 };
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -122,6 +122,7 @@ export default function History() {
       completed: todayVideos.filter(v => v.status === 'completed').length,
       failed: todayVideos.filter(v => v.status === 'failed').length,
       pending: todayVideos.filter(v => v.status === 'pending').length,
+      queued: todayVideos.filter(v => v.status === 'queued').length,
     };
   };
 
@@ -222,14 +223,27 @@ export default function History() {
               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
               : video.status === 'failed'
               ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              : video.status === 'queued'
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
           }`}>
             {video.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
             {video.status === 'failed' && <AlertCircle className="w-3 h-3" />}
             {video.status === 'pending' && <Loader2 className="w-3 h-3 animate-spin" />}
+            {video.status === 'queued' && <Clock className="w-3 h-3" />}
             {video.status.charAt(0).toUpperCase() + video.status.slice(1)}
           </span>
         </p>
+
+        {/* Display the original prompt */}
+        {video.prompt && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 sm:p-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Prompt:</p>
+            <p className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 line-clamp-3" data-testid={`text-prompt-${video.id}`}>
+              {video.prompt}
+            </p>
+          </div>
+        )}
 
         {video.videoUrl && video.status === 'completed' && (
           <>
@@ -253,7 +267,8 @@ export default function History() {
           </>
         )}
 
-        {video.status === 'failed' && showRegenerateButton && (
+        {/* Show regenerate button for ALL videos when enabled */}
+        {showRegenerateButton && (
           <Button
             onClick={() => regenerateMutation.mutate({ 
               sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
@@ -264,7 +279,7 @@ export default function History() {
             variant="outline"
             className="w-full"
             size="sm"
-            disabled={regenerateMutation.isPending}
+            disabled={regenerateMutation.isPending || video.status === 'queued'}
             data-testid={`button-regenerate-${video.id}`}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -396,17 +411,31 @@ export default function History() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.total}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Videos</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total</div>
                 </div>
                 <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <div className="flex items-center justify-center gap-1">
                     <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <span className="text-2xl font-bold text-green-600 dark:text-green-400">{todayStats.completed}</span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Successful</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Completed</div>
+                </div>
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-1">
+                    <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{todayStats.pending}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Processing</div>
+                </div>
+                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center gap-1">
+                    <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayStats.queued}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Queued</div>
                 </div>
                 <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                   <div className="flex items-center justify-center gap-1">
@@ -414,13 +443,6 @@ export default function History() {
                     <span className="text-2xl font-bold text-red-600 dark:text-red-400">{todayStats.failed}</span>
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Failed</div>
-                </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <div className="flex items-center justify-center gap-1">
-                    <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{todayStats.pending}</span>
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Pending</div>
                 </div>
               </div>
             </CardContent>

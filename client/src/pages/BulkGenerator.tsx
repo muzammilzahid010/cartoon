@@ -80,45 +80,71 @@ export default function BulkGenerator() {
     setGenerationProgress(initialProgress);
     setIsGenerating(true);
 
+    // STEP 1: Save ALL videos to history IMMEDIATELY (with "queued" status)
+    // This ensures all videos appear in history even if user reloads the page
+    const historyEntryIds: (string | null)[] = [];
+    
+    for (let i = 0; i < promptLines.length; i++) {
+      const currentPrompt = promptLines[i];
+      try {
+        const historyResponse = await fetch('/api/video-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            userId: '',
+            prompt: currentPrompt,
+            aspectRatio,
+            status: 'queued',
+            title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
+          }),
+        });
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          historyEntryIds.push(historyData.video.id);
+          console.log(`Saved video ${i + 1} to history with ID: ${historyData.video.id}`);
+        } else {
+          historyEntryIds.push(null);
+          console.error(`Failed to save video ${i + 1} to history`);
+        }
+      } catch (historyError) {
+        historyEntryIds.push(null);
+        console.error('Failed to save to history:', historyError);
+      }
+    }
+
     // Track success/failure counts
     let successCount = 0;
     let failureCount = 0;
 
-    // Generate videos sequentially
+    // STEP 2: Generate videos sequentially, updating their status
     for (let i = 0; i < promptLines.length; i++) {
       const currentPrompt = promptLines[i];
-      let historyEntryId: string | null = null;
+      const historyEntryId = historyEntryIds[i];
 
-      // Update status to processing
+      // Update status to processing in UI
       setGenerationProgress(prev => 
         prev.map((item, idx) => 
           idx === i ? { ...item, status: "processing" } : item
         )
       );
 
-      try {
-        // Save to history as pending
+      // Update status to processing in database
+      if (historyEntryId) {
         try {
-          const historyResponse = await fetch('/api/video-history', {
-            method: 'POST',
+          await fetch(`/api/video-history/${historyEntryId}`, {
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({
-              userId: '',
-              prompt: currentPrompt,
-              aspectRatio,
-              status: 'pending',
-              title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
-            }),
+            body: JSON.stringify({ status: 'pending' }),
           });
-          
-          if (historyResponse.ok) {
-            const historyData = await historyResponse.json();
-            historyEntryId = historyData.video.id;
-          }
-        } catch (historyError) {
-          console.error('Failed to save to history:', historyError);
+        } catch (updateError) {
+          console.error('Failed to update status to processing:', updateError);
         }
+      }
+
+      try {
 
         // Start video generation
         const response = await fetch('/api/generate-veo-video', {
