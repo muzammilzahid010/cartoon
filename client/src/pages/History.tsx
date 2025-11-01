@@ -357,7 +357,7 @@ export default function History() {
         <div key={key} className="mb-6">
           <h3 className="text-lg font-semibold mb-4">Standalone Videos</h3>
           <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {group.videos.map(video => renderVideoCard(video, false))}
+            {group.videos.map(video => renderVideoCard(video, true))}
           </div>
         </div>
       );
