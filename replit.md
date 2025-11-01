@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (Neon serverless) with Drizzle ORM.
 - **Schema**: Drizzle ORM definitions, includes Users, Character, Story Input, Scene Output, and Video History models.
 - **Authentication**: Session-based with bcrypt password hashing. Role-based access control (`isAdmin`). Default admin account `muzi`/`muzi123`.
-- **User Management**: Admin panel (`/admin`) for user oversight, plan management (free, basic, premium), API token assignment, and comprehensive video generation analytics.
+- **User Management**: Admin panel (`/admin`) for user oversight, plan management (free, basic, premium), API token assignment, and comprehensive video generation analytics. **Bulk Token Replacement**: Admin can replace all API tokens at once by pasting new tokens (one per line), with automatic handling of foreign key constraints by nullifying video history references before deletion.
 - **Token Usage Tracking**: Video history now includes `tokenUsed` field to track which API token generated each video, enabling per-token analytics and performance monitoring.
 
 ### UI/UX Decisions
@@ -37,11 +37,11 @@ Preferred communication style: Simple, everyday language.
 - **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending, queued) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects, including title, date, scene count, character count, and video generation status. Detail view displays script, characters, merged video (if any), and scenes. Auto-saves projects after successful AI generation.
 - **VEO Generator Page**: Professional card design with gradient icon badges, enhanced input fields with focus rings, improved aspect ratio selection with hover states, gradient buttons with animations. Fully mobile-responsive.
-- **Bulk Generator Page**: Professional gradient design with icon badges, progress tracking with visual indicators, "Ready" status badge, enhanced mobile responsiveness.
+- **Bulk Generator Page**: Professional gradient design with icon badges, progress tracking with visual indicators, "Ready" status badge, enhanced mobile responsiveness. **Token Label Display**: Each video card shows which API token is processing it (e.g., "Token 1", "Token 2") as a purple badge next to the video number for real-time visibility into token distribution.
 
 ### Technical Implementations
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
-- **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control.
+- **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control. **Per-Scene Token Rotation**: Cartoon story generation now uses a different API token for each scene (Scene 1 → Token A, Scene 2 → Token B, etc.), distributing load across multiple tokens instead of using one token for all scenes.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout. **Smart Token Rotation**: If video doesn't complete in 2 minutes, automatically tries next API token; if still not completed after 4 minutes total, marks as failed.
 - **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
