@@ -395,6 +395,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Video history endpoints
+  app.get("/api/admin/video-history", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const videos = await db.select().from(videoHistory).orderBy(desc(videoHistory.createdAt));
+      res.json({ videos });
+    } catch (error) {
+      console.error("Error fetching all video history:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch video history",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.get("/api/video-history", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;

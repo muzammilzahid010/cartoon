@@ -21,8 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw, TrendingUp, CheckCircle, XCircle, Clock } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
 
 const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -118,6 +118,74 @@ export default function Admin() {
     queryKey: ["/api/token-settings"],
     enabled: isAdmin === true,
   });
+
+  const { data: allVideoHistory } = useQuery<{ videos: Array<{
+    id: string;
+    userId: string;
+    prompt: string;
+    aspectRatio: string;
+    videoUrl: string | null;
+    status: string;
+    createdAt: string;
+    title: string | null;
+    tokenUsed: string | null;
+  }> }>({
+    queryKey: ["/api/admin/video-history"],
+    enabled: isAdmin === true,
+  });
+
+  // Calculate today's video statistics
+  const todayStats = useMemo(() => {
+    if (!allVideoHistory?.videos) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayVideos = allVideoHistory.videos.filter(video => {
+      const videoDate = new Date(video.createdAt);
+      videoDate.setHours(0, 0, 0, 0);
+      return videoDate.getTime() === today.getTime();
+    });
+    
+    if (todayVideos.length === 0) return null;
+    
+    return {
+      total: todayVideos.length,
+      completed: todayVideos.filter(v => v.status === 'completed').length,
+      failed: todayVideos.filter(v => v.status === 'failed').length,
+      pending: todayVideos.filter(v => v.status === 'pending').length,
+    };
+  }, [allVideoHistory]);
+
+  // Calculate per-token statistics
+  const tokenStats = useMemo(() => {
+    if (!allVideoHistory?.videos || !tokensData?.tokens) return [];
+    
+    const stats = new Map<string, { tokenId: string; label: string; total: number; completed: number; failed: number }>();
+    
+    // Initialize stats for all tokens
+    tokensData.tokens.forEach(token => {
+      stats.set(token.id, {
+        tokenId: token.id,
+        label: token.label,
+        total: 0,
+        completed: 0,
+        failed: 0,
+      });
+    });
+    
+    // Count videos by token
+    allVideoHistory.videos.forEach(video => {
+      if (video.tokenUsed && stats.has(video.tokenUsed)) {
+        const stat = stats.get(video.tokenUsed)!;
+        stat.total++;
+        if (video.status === 'completed') stat.completed++;
+        if (video.status === 'failed') stat.failed++;
+      }
+    });
+    
+    return Array.from(stats.values()).filter(s => s.total > 0);
+  }, [allVideoHistory, tokensData]);
 
   useEffect(() => {
     if (isLoadingSession) return;
@@ -467,6 +535,121 @@ export default function Admin() {
             </Button>
           </div>
         </div>
+
+        {/* Today's Video Generation Statistics */}
+        {todayStats && (
+          <Card className="shadow-xl dark:bg-gray-800 dark:border-gray-700 mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="text-gray-900 dark:text-white">Today's Video Generation Statistics</CardTitle>
+              </div>
+              <CardDescription className="text-gray-600 dark:text-gray-400">
+                Overview of videos generated today
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.total}</p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.completed}</p>
+                </div>
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Failed</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.failed}</p>
+                </div>
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.pending}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Per-Token Statistics */}
+        {tokenStats.length > 0 && (
+          <Card className="shadow-xl dark:bg-gray-800 dark:border-gray-700 mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <CardTitle className="text-gray-900 dark:text-white">API Token Usage Statistics</CardTitle>
+              </div>
+              <CardDescription className="text-gray-600 dark:text-gray-400">
+                Video generation statistics per API token
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="dark:border-gray-700">
+                      <TableHead className="text-gray-700 dark:text-gray-300">Token Label</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300">Total Videos</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300">Completed</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300">Failed</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300">Success Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tokenStats.map((stat) => {
+                      const successRate = stat.total > 0 ? ((stat.completed / stat.total) * 100).toFixed(1) : '0.0';
+                      return (
+                        <TableRow key={stat.tokenId} className="dark:border-gray-700">
+                          <TableCell className="font-medium text-gray-900 dark:text-white">
+                            {stat.label}
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            {stat.total}
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-sm rounded">
+                              <CheckCircle className="w-3 h-3" />
+                              {stat.completed}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm rounded">
+                              <XCircle className="w-3 h-3" />
+                              {stat.failed}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            <span className={`px-2 py-1 text-sm rounded ${
+                              parseFloat(successRate) >= 80 
+                                ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                                : parseFloat(successRate) >= 50
+                                ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300'
+                                : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                            }`}>
+                              {successRate}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="shadow-xl dark:bg-gray-800 dark:border-gray-700">
