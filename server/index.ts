@@ -99,7 +99,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Daily history cleanup job - runs at midnight Pakistan time (UTC+5)
+  // Daily cleanup job - runs at midnight Pakistan time (UTC+5)
   // Initialize to empty string so cleanup runs on first midnight after server start
   let lastCleanupDate = '';
   
@@ -113,19 +113,51 @@ app.use((req, res, next) => {
       
       // Check if it's midnight (00:00-00:01) and we haven't run cleanup today
       if (currentHour === 0 && currentMinute === 0 && currentDate !== lastCleanupDate) {
-        console.log(`[Daily Cleanup] Running video history cleanup at midnight PKT (${currentDate})`);
+        console.log(`[Daily Cleanup] Running cleanup tasks at midnight PKT (${currentDate})`);
+        
+        // Cleanup video history
         await storage.clearAllVideoHistory();
-        lastCleanupDate = currentDate;
         console.log('[Daily Cleanup] Video history cleared successfully');
+        
+        // Cleanup expired temporary videos
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          const deletedCount = await objectStorageService.cleanupExpiredVideos();
+          console.log(`[Daily Cleanup] Deleted ${deletedCount} expired temporary videos`);
+        } catch (tempVideoError) {
+          console.error('[Daily Cleanup] Error cleaning up temporary videos:', tempVideoError);
+        }
+        
+        lastCleanupDate = currentDate;
+        console.log('[Daily Cleanup] All cleanup tasks completed');
       }
     } catch (error) {
       console.error('[Daily Cleanup] Error during cleanup:', error);
     }
   };
   
-  // Run cleanup check every minute
+  // Also run temporary video cleanup every hour (independent of midnight cleanup)
+  const checkAndCleanupTempVideos = async () => {
+    try {
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const deletedCount = await objectStorageService.cleanupExpiredVideos();
+      if (deletedCount > 0) {
+        console.log(`[Hourly Cleanup] Deleted ${deletedCount} expired temporary videos`);
+      }
+    } catch (error) {
+      console.error('[Hourly Cleanup] Error cleaning up temporary videos:', error);
+    }
+  };
+  
+  // Run daily cleanup check every minute
   setInterval(checkAndCleanupHistory, 60000);
   console.log('[Daily Cleanup] History cleanup job scheduled for midnight PKT');
+  
+  // Run temporary video cleanup every hour
+  setInterval(checkAndCleanupTempVideos, 60 * 60 * 1000);
+  console.log('[Hourly Cleanup] Temporary video cleanup scheduled (runs every hour)');
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
