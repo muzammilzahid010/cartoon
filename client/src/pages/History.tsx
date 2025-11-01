@@ -216,13 +216,13 @@ export default function History() {
   };
 
   const renderVideoCard = (video: VideoHistory, showRegenerateButton = false) => (
-    <Card key={video.id} data-testid={`video-card-${video.id}`} className="h-full">
+    <Card key={video.id} data-testid={`video-card-${video.id}`} className="h-full bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
       <CardHeader className="p-3 sm:p-4">
-        <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+        <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-white">
           <Film className="w-4 h-4" />
           <span className="truncate">{video.title || `Video ${video.id.slice(0, 8)}`}</span>
         </CardTitle>
-        <CardDescription className="flex items-center gap-2 text-xs">
+        <CardDescription className="flex items-center gap-2 text-xs text-gray-300">
           <Calendar className="w-3 h-3" />
           {formatDate(video.createdAt)}
         </CardDescription>
@@ -231,12 +231,12 @@ export default function History() {
         <p className="text-xs sm:text-sm">
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
             video.status === 'completed' 
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              ? 'bg-green-600/20 border border-green-500/30 text-green-300'
               : video.status === 'failed'
-              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              ? 'bg-red-600/20 border border-red-500/30 text-red-300'
               : video.status === 'queued'
-              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+              ? 'bg-purple-600/20 border border-purple-500/30 text-purple-300'
+              : 'bg-yellow-600/20 border border-yellow-500/30 text-yellow-300'
           }`}>
             {video.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
             {video.status === 'failed' && <AlertCircle className="w-3 h-3" />}
@@ -248,9 +248,9 @@ export default function History() {
 
         {/* Display the original prompt */}
         {video.prompt && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 sm:p-3">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Prompt:</p>
-            <p className="text-xs sm:text-sm text-gray-800 dark:text-gray-200 line-clamp-3" data-testid={`text-prompt-${video.id}`}>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-2 sm:p-3">
+            <p className="text-xs text-gray-300 font-medium mb-1">Prompt:</p>
+            <p className="text-xs sm:text-sm text-white line-clamp-3" data-testid={`text-prompt-${video.id}`}>
               {video.prompt}
             </p>
           </div>
@@ -288,7 +288,7 @@ export default function History() {
               projectId: video.projectId || undefined
             })}
             variant="outline"
-            className="w-full"
+            className="w-full border-white/20 text-white hover:bg-white/10"
             size="sm"
             disabled={regenerateMutation.isPending || video.status === 'queued'}
             data-testid={`button-regenerate-${video.id}`}
@@ -309,12 +309,12 @@ export default function History() {
     if (group.project) {
       // Cartoon project with scenes
       return (
-        <Card key={key} className="mb-6">
-          <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
+        <Card key={key} className="mb-6 bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
+          <CardHeader className="p-4 sm:p-6 bg-purple-600/10 border-b border-white/10">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1">
-                <CardTitle className="text-lg sm:text-xl mb-2">{group.project.title}</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle className="text-lg sm:text-xl mb-2 text-white">{group.project.title}</CardTitle>
+                <CardDescription className="text-sm text-gray-300">
                   {completedCount} of {group.videos.length} scenes completed
                   {failedCount > 0 && ` • ${failedCount} failed`}
                 </CardDescription>
@@ -324,6 +324,7 @@ export default function History() {
                   onClick={() => handleMergeVideos(key, group.videos, group.project?.id)}
                   disabled={mergingProject === key}
                   size="sm"
+                  className="bg-purple-600 hover:bg-purple-700 border-0"
                   data-testid={`button-merge-${key}`}
                 >
                   {mergingProject === key ? (
@@ -338,9 +339,9 @@ export default function History() {
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             {mergedUrl && (
-              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Play className="w-5 h-5" />
+              <div className="mb-6 p-4 bg-green-600/10 border border-green-500/30 rounded-lg">
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-white">
+                  <Play className="w-5 h-5 text-green-400" />
                   Merged Video
                 </h3>
                 <div className="aspect-video bg-black rounded-lg overflow-hidden mb-3">
@@ -353,7 +354,7 @@ export default function History() {
                 </div>
                 <Button
                   onClick={() => handleDownload(mergedUrl)}
-                  className="w-full"
+                  className="w-full bg-purple-600 hover:bg-purple-700 border-0"
                   size="sm"
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -363,8 +364,8 @@ export default function History() {
             )}
 
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="scenes">
-                <AccordionTrigger className="text-sm sm:text-base">
+              <AccordionItem value="scenes" className="border-white/10">
+                <AccordionTrigger className="text-sm sm:text-base text-white hover:text-white">
                   View All Scenes ({group.videos.length})
                 </AccordionTrigger>
                 <AccordionContent>
@@ -381,7 +382,7 @@ export default function History() {
       // Standalone videos
       return (
         <div key={key} className="mb-6">
-          <h3 className="text-lg font-semibold mb-4">Standalone Videos</h3>
+          <h3 className="text-lg font-semibold mb-4 text-white">Standalone Videos</h3>
           <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {group.videos.map(video => renderVideoCard(video, true))}
           </div>
@@ -391,12 +392,12 @@ export default function History() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230]">
+      <header className="border-b border-white/10 bg-[#1c2534]/80 dark:bg-[#161c28]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex justify-between items-center">
-          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">Video History</h1>
+          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-white">Video History</h1>
           <Link href="/">
-            <Button variant="outline" size="sm" data-testid="link-home">
+            <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10" data-testid="link-home">
               <Home className="w-4 h-4 sm:mr-1" />
               <span className="hidden sm:inline">Home</span>
             </Button>
@@ -406,54 +407,54 @@ export default function History() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Your Generated Videos</h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Your Generated Videos</h2>
+          <p className="text-sm sm:text-base text-gray-300 mt-1">
             View, download, regenerate, and merge your cartoon videos
           </p>
         </div>
 
         {/* Today's Statistics Card */}
         {todayStats.total > 0 && (
-          <Card className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
+          <Card className="mb-6 bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
             <CardHeader className="p-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <Calendar className="w-5 h-5 text-purple-400" />
                 Today's Generation Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.total}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total</div>
+                <div className="text-center p-3 bg-white/5 border border-white/10 rounded-lg">
+                  <div className="text-2xl font-bold text-white">{todayStats.total}</div>
+                  <div className="text-xs text-gray-300 mt-1">Total</div>
                 </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-3 bg-white/5 border border-white/10 rounded-lg">
                   <div className="flex items-center justify-center gap-1">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">{todayStats.completed}</span>
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    <span className="text-2xl font-bold text-green-400">{todayStats.completed}</span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Completed</div>
+                  <div className="text-xs text-gray-300 mt-1">Completed</div>
                 </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-3 bg-white/5 border border-white/10 rounded-lg">
                   <div className="flex items-center justify-center gap-1">
-                    <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{todayStats.pending}</span>
+                    <Loader2 className="w-5 h-5 text-yellow-400" />
+                    <span className="text-2xl font-bold text-yellow-400">{todayStats.pending}</span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Processing</div>
+                  <div className="text-xs text-gray-300 mt-1">Processing</div>
                 </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-3 bg-white/5 border border-white/10 rounded-lg">
                   <div className="flex items-center justify-center gap-1">
-                    <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayStats.queued}</span>
+                    <Clock className="w-5 h-5 text-purple-400" />
+                    <span className="text-2xl font-bold text-purple-400">{todayStats.queued}</span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Queued</div>
+                  <div className="text-xs text-gray-300 mt-1">Queued</div>
                 </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center p-3 bg-white/5 border border-white/10 rounded-lg">
                   <div className="flex items-center justify-center gap-1">
-                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                    <span className="text-2xl font-bold text-red-600 dark:text-red-400">{todayStats.failed}</span>
+                    <AlertCircle className="w-5 h-5 text-red-400" />
+                    <span className="text-2xl font-bold text-red-400">{todayStats.failed}</span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Failed</div>
+                  <div className="text-xs text-gray-300 mt-1">Failed</div>
                 </div>
               </div>
             </CardContent>

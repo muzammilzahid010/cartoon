@@ -71,12 +71,12 @@ export default function Projects() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230]">
+      <header className="border-b border-white/10 bg-[#1c2534]/80 dark:bg-[#161c28]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex justify-between items-center">
-          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white">My Projects</h1>
+          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-white">My Projects</h1>
           <Link href="/">
-            <Button variant="outline" size="sm" data-testid="link-home">
+            <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10" data-testid="link-home">
               <Home className="w-4 h-4 sm:mr-1" />
               <span className="hidden sm:inline">Home</span>
             </Button>
@@ -86,8 +86,8 @@ export default function Projects() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Your Cartoon Story Projects</h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Your Cartoon Story Projects</h2>
+          <p className="text-sm sm:text-base text-gray-300 mt-1">
             View and manage all your cartoon generation projects
           </p>
         </div>
@@ -99,25 +99,25 @@ export default function Projects() {
         ) : data?.projects && data.projects.length > 0 ? (
           <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {data.projects.map((project) => (
-              <Card key={project.id} data-testid={`project-card-${project.id}`}>
+              <Card key={project.id} className="bg-[#1e2838] dark:bg-[#181e2a] border border-white/10" data-testid={`project-card-${project.id}`}>
                 <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg truncate">{project.title}</CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardTitle className="text-base sm:text-lg truncate text-white">{project.title}</CardTitle>
+                  <CardDescription className="text-xs text-gray-300">
                     Created {formatDate(project.createdAt)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Scenes:</span>
-                      <span className="font-semibold">{getSceneCount(project.scenes)}</span>
+                      <span className="text-gray-300">Scenes:</span>
+                      <span className="font-semibold text-white">{getSceneCount(project.scenes)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Characters:</span>
-                      <span className="font-semibold">{getCharacterCount(project.characters)}</span>
+                      <span className="text-gray-300">Characters:</span>
+                      <span className="font-semibold text-white">{getCharacterCount(project.characters)}</span>
                     </div>
                     {project.mergedVideoUrl && (
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <div className="flex items-center gap-2 text-green-400">
                         <Film className="w-4 h-4" />
                         <span className="text-xs">Video Generated</span>
                       </div>
@@ -136,6 +136,7 @@ export default function Projects() {
                       size="sm"
                       onClick={() => handleDelete(project.id, project.title)}
                       disabled={deleteMutation.isPending}
+                      className="border-white/20 text-white hover:bg-white/10"
                       data-testid={`button-delete-${project.id}`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -146,16 +147,16 @@ export default function Projects() {
             ))}
           </div>
         ) : (
-          <Card className="text-center p-8 sm:p-12">
+          <Card className="text-center p-8 sm:p-12 bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
             <CardContent className="space-y-4">
               <Film className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400" />
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold mb-2">No projects yet</h3>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-white">No projects yet</h3>
+                <p className="text-sm sm:text-base text-gray-300 mb-4">
                   Create your first cartoon story project to get started
                 </p>
                 <Link href="/">
-                  <Button data-testid="button-create-first">
+                  <Button className="bg-purple-600 hover:bg-purple-700 border-0" data-testid="button-create-first">
                     Create Your First Project
                   </Button>
                 </Link>

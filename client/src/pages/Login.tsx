@@ -75,16 +75,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
-      <Card className="w-full max-w-md shadow-2xl dark:bg-gray-800/50 dark:border-gray-700 animate-scale-in backdrop-blur-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230] p-4 md:p-8">
+      <Card className="w-full max-w-md shadow-2xl bg-[#1e2838] dark:bg-[#181e2a] border border-white/10 animate-scale-in backdrop-blur-sm">
         <CardHeader className="space-y-3 text-center pb-6">
           <div className="flex justify-center mb-2">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 shadow-lg transform transition-transform hover:scale-105 duration-300">
-              <Film className="w-10 h-10 text-white" />
+            <div className="p-4 rounded-2xl bg-purple-600/30 border border-purple-500/50 shadow-lg transform transition-transform hover:scale-105 duration-300">
+              <Film className="w-10 h-10 text-purple-400" />
             </div>
           </div>
-          <CardTitle className="text-3xl md:text-4xl font-bold gradient-text">Welcome Back</CardTitle>
-          <CardDescription className="text-base text-gray-600 dark:text-gray-400">
+          <CardTitle className="text-3xl md:text-4xl font-bold text-white">Welcome Back</CardTitle>
+          <CardDescription className="text-base text-gray-300">
             Sign in to create amazing AI-powered videos
           </CardDescription>
         </CardHeader>
@@ -96,17 +96,17 @@ export default function Login() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700 dark:text-gray-300">Username</FormLabel>
+                    <FormLabel className="text-white">Username</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="Enter your username"
                         data-testid="input-username"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                        className="bg-[#242d3f]/50 border-white/10 text-white placeholder:text-gray-400"
                         disabled={loginMutation.isPending}
                       />
                     </FormControl>
-                    <FormMessage className="dark:text-red-400" />
+                    <FormMessage className="text-red-300" />
                   </FormItem>
                 )}
               />
@@ -116,25 +116,25 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700 dark:text-gray-300">Password</FormLabel>
+                    <FormLabel className="text-white">Password</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         type="password"
                         placeholder="Enter your password"
                         data-testid="input-password"
-                        className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                        className="bg-[#242d3f]/50 border-white/10 text-white placeholder:text-gray-400"
                         disabled={loginMutation.isPending}
                       />
                     </FormControl>
-                    <FormMessage className="dark:text-red-400" />
+                    <FormMessage className="text-red-300" />
                   </FormItem>
                 )}
               />
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 dark:hover:from-purple-600 dark:hover:to-blue-600 text-white dark:text-white"
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
                 disabled={loginMutation.isPending}
                 data-testid="button-login"
               >

@@ -488,8 +488,8 @@ export default function Admin() {
 
   if (isLoadingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230]">
+        <p className="text-gray-300">Loading...</p>
       </div>
     );
   }
@@ -499,17 +499,17 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230] p-4">
       <div className="max-w-7xl mx-auto py-8">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500">
-              <Shield className="w-6 h-6 text-white dark:text-white" />
+            <div className="p-2 rounded-lg bg-purple-600/30 border border-purple-500/50">
+              <Shield className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Panel</h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Logged in as <span className="font-medium text-gray-900 dark:text-white">{session.user.username}</span>
+              <h1 className="text-3xl font-bold text-white">Admin Panel</h1>
+              <p className="text-gray-300">
+                Logged in as <span className="font-medium text-white">{session.user.username}</span>
               </p>
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function Admin() {
               variant="outline"
               onClick={() => setLocation("/")}
               data-testid="button-home"
-              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="border-white/20 text-white hover:bg-white/10"
             >
               <Home className="w-4 h-4 mr-2" />
               Home
@@ -528,7 +528,7 @@ export default function Admin() {
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
               data-testid="button-logout"
-              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="border-white/20 text-white hover:bg-white/10"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
@@ -538,38 +538,38 @@ export default function Admin() {
 
         {/* Today's Video Generation Statistics */}
         {todayStats && (
-          <Card className="shadow-xl dark:bg-gray-800 dark:border-gray-700 mb-6">
+          <Card className="shadow-xl bg-[#1e2838] dark:bg-[#181e2a] border border-white/10 mb-6">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <CardTitle className="text-gray-900 dark:text-white">Today's Video Generation Statistics</CardTitle>
+                <TrendingUp className="w-5 h-5 text-purple-400" />
+                <CardTitle className="text-white">Today's Video Generation Statistics</CardTitle>
               </div>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
+              <CardDescription className="text-gray-300">
                 Overview of videos generated today
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="p-4 bg-purple-600/10 border border-purple-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+                    <TrendingUp className="w-4 h-4 text-purple-400" />
+                    <p className="text-sm font-medium text-gray-300">Total</p>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.total}</p>
+                  <p className="text-2xl font-bold text-white">{todayStats.total}</p>
                 </div>
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="p-4 bg-green-600/10 border border-green-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <p className="text-sm font-medium text-gray-300">Completed</p>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.completed}</p>
+                  <p className="text-2xl font-bold text-white">{todayStats.completed}</p>
                 </div>
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="p-4 bg-red-600/10 border border-red-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Failed</p>
+                    <XCircle className="w-4 h-4 text-red-400" />
+                    <p className="text-sm font-medium text-gray-300">Failed</p>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayStats.failed}</p>
+                  <p className="text-2xl font-bold text-white">{todayStats.failed}</p>
                 </div>
                 <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
