@@ -363,9 +363,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk replace all tokens (admin only)
   app.post("/api/tokens/bulk-replace", requireAdmin, async (req, res) => {
     try {
+      console.log('[Bulk Replace] Request body:', req.body);
       const validationResult = bulkReplaceTokensSchema.safeParse(req.body);
       
       if (!validationResult.success) {
+        console.error('[Bulk Replace] Validation failed:', validationResult.error.errors);
         return res.status(400).json({ 
           error: "Invalid input", 
           details: validationResult.error.errors 
@@ -382,18 +384,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return line.replace(/^Bearer\s+/i, '');
         });
 
+      console.log('[Bulk Replace] Parsed token lines:', tokenLines.length);
+
       if (tokenLines.length === 0) {
+        console.error('[Bulk Replace] No valid tokens found');
         return res.status(400).json({ 
           error: "No valid tokens found",
           details: ["Please enter at least one token"] 
         });
       }
 
+      console.log('[Bulk Replace] Calling storage.replaceAllTokens...');
       const newTokens = await storage.replaceAllTokens(tokenLines);
+      console.log('[Bulk Replace] Successfully replaced tokens:', newTokens.length);
       res.json({ success: true, tokens: newTokens, count: newTokens.length });
     } catch (error) {
-      console.error("Error in POST /api/tokens/bulk-replace:", error);
-      res.status(500).json({ error: "Failed to replace tokens" });
+      console.error("[Bulk Replace] Error details:", error);
+      console.error("[Bulk Replace] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ 
+        error: "Failed to replace tokens",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
