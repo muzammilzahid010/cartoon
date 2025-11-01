@@ -25,11 +25,13 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (Neon serverless) with Drizzle ORM.
 - **Schema**: Drizzle ORM definitions, includes Users, Character, Story Input, Scene Output, and Video History models.
 - **Authentication**: Session-based with bcrypt password hashing. Role-based access control (`isAdmin`). Default admin account `muzi`/`muzi123`.
-- **User Management**: Admin panel (`/admin`) for user oversight, plan management (free, basic, premium), and API token assignment.
+- **User Management**: Admin panel (`/admin`) for user oversight, plan management (free, basic, premium), API token assignment, and comprehensive video generation analytics.
+- **Token Usage Tracking**: Video history now includes `tokenUsed` field to track which API token generated each video, enabling per-token analytics and performance monitoring.
 
 ### UI/UX Decisions
 - **Multi-step Wizard**: Story Input → Generation → Review/Export.
-- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access.
+- **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. User-scoped access. Displays today's generation statistics (total, completed, failed, pending).
+- **Admin Statistics Dashboard**: Admin panel displays today's video generation statistics (total, completed, failed, pending) and per-token analytics showing total videos, completed count, failed count, and success rate for each API token. All tokens displayed including inactive ones to highlight unused tokens.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects, including title, date, scene count, character count, and video generation status. Detail view displays script, characters, merged video (if any), and scenes. Auto-saves projects after successful AI generation.
 
 ### Technical Implementations
