@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout.
-- **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Ensures all videos appear in history even if user reloads page during generation.
+- **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
 - **Video Merging**: fal.ai FFmpeg API (`fal-ai/ffmpeg-api/merge-videos`) for cloud-based video merging. No local FFmpeg processing required.
 
