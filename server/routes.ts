@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { 
   storyInputSchema, 
   loginSchema, 
@@ -10,6 +11,7 @@ import {
   insertApiTokenSchema,
   bulkReplaceTokensSchema,
   updateTokenSettingsSchema,
+  videoHistory,
   type Scene 
 } from "@shared/schema";
 import { generateScenes } from "./gemini";
@@ -17,6 +19,7 @@ import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitFo
 import { uploadVideoToCloudinary } from "./cloudinary";
 import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
+import { desc } from "drizzle-orm";
 import path from "path";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
