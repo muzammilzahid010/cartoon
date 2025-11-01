@@ -17,7 +17,6 @@ import {
 import { generateScenes } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
-import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
 import { desc } from "drizzle-orm";
 import path from "path";
@@ -1445,15 +1444,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[Merge Videos] Starting merge of ${videos.length} videos using fal.ai`);
+      console.log(`[Merge Videos] Starting merge of ${videos.length} videos using FFmpeg`);
 
       // Sort videos by scene number before merging to ensure correct sequence
       const sortedVideos = [...videos].sort((a, b) => a.sceneNumber - b.sceneNumber);
       const videoUrls = sortedVideos.map(v => v.videoUrl);
 
-      // Merge videos using fal.ai API
-      const mergedVideoUrl = await mergeVideosWithFalAI(videoUrls);
-      console.log(`[Merge Videos] Videos merged successfully with fal.ai`);
+      // Import the FFmpeg merger function
+      const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
+      
+      // Merge videos using local FFmpeg
+      const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
+      console.log(`[Merge Videos] Videos merged successfully with FFmpeg`);
       console.log(`[Merge Videos] Merged video URL: ${mergedVideoUrl}`);
 
       // Save merged video URL to project if projectId provided

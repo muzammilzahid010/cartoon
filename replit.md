@@ -46,14 +46,14 @@ Preferred communication style: Simple, everyday language.
 - **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts.
-- **Video Merging**: Two approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API (`fal-ai/ffmpeg-api/merge-videos`) for cloud-based merging of project scenes. (2) **History Selection**: Local FFmpeg processing for user-selected videos (up to 19). Downloads videos, merges using FFmpeg concat demuxer, uploads result to Cloudinary, and cleans up temp files. Security enforced via video ID verification and ownership checks.
+- **Video Merging**: Uses local FFmpeg processing for all video merging operations: (1) **Cartoon Projects**: Downloads project scenes, merges using FFmpeg concat demuxer, uploads to Cloudinary. (2) **History Selection**: User-selected videos (up to 19). Both approaches download videos, merge using FFmpeg concat demuxer, upload result to Cloudinary, and clean up temp files. Security enforced via video ID verification and ownership checks.
 
 ## External Dependencies
 
 - **AI Service**: Google Gemini AI (gemini-2.5-flash model)
 - **Video Generation**: VEO 3 API
 - **Database**: Neon PostgreSQL (via `@neondatabase/serverless`), Drizzle ORM
-- **Video Storage**: fal.ai API for merged video hosting (auto-generated URL), Cloudinary for individual scene video storage.
-- **System Dependency**: FFmpeg (for video processing)
+- **Video Storage**: Cloudinary for all video storage (individual scenes and merged videos).
+- **System Dependency**: FFmpeg (for video processing and merging)
 
-**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
+**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
