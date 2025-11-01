@@ -114,11 +114,11 @@ export default function BulkGenerator() {
       }
     }
 
-    // Track success/failure counts
-    let successCount = 0;
-    let failureCount = 0;
-
-    // STEP 2: Generate videos sequentially, updating their status
+    // STEP 2: Start video generation with 20-second delay between each
+    // Videos will process in parallel/background
+    let startedCount = 0;
+    let failedToStartCount = 0;
+    
     for (let i = 0; i < promptLines.length; i++) {
       const currentPrompt = promptLines[i];
       const historyEntryId = historyEntryIds[i];
@@ -130,154 +130,128 @@ export default function BulkGenerator() {
         )
       );
 
-      // Update status to processing in database
-      if (historyEntryId) {
-        try {
-          await fetch(`/api/video-history/${historyEntryId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ status: 'pending' }),
-          });
-        } catch (updateError) {
-          console.error('Failed to update status to processing:', updateError);
-        }
+      // Skip if history entry wasn't created
+      if (!historyEntryId) {
+        console.error(`Skipping video ${i + 1} - no history entry ID`);
+        setGenerationProgress(prev => 
+          prev.map((item, idx) => 
+            idx === i ? { ...item, status: "failed", error: "Failed to create history entry" } : item
+          )
+        );
+        failedToStartCount++;
+        continue;
       }
 
       try {
-
-        // Start video generation
-        const response = await fetch('/api/generate-veo-video', {
+        // Use the regenerate endpoint which has background polling
+        const response = await fetch('/api/regenerate-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ prompt: currentPrompt, aspectRatio }),
+          body: JSON.stringify({ 
+            videoId: historyEntryId,
+            prompt: currentPrompt,
+            aspectRatio: aspectRatio,
+            sceneNumber: i + 1,
+          }),
         });
 
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error || 'Failed to start video generation');
-        }
-
-        const { operationName, sceneId, tokenId } = result;
-
-        // Update history with token ID if available
-        if (historyEntryId && tokenId) {
-          try {
-            await fetch(`/api/video-history/${historyEntryId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ tokenUsed: tokenId }),
-            });
-          } catch (historyError) {
-            console.error('Failed to update history with token ID:', historyError);
-          }
-        }
-
-        // Poll for video status
-        let completed = false;
-        let attempts = 0;
-        const maxAttempts = 120; // 4 minutes max
-
-        while (!completed && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          attempts++;
-
-          const statusResponse = await fetch('/api/check-video-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ operationName, sceneId }),
-          });
-
-          const statusData = await statusResponse.json();
-
-          if (statusData.status === 'COMPLETED' || 
-              statusData.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || 
-              statusData.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
-            completed = true;
-            
-            if (statusData.videoUrl) {
-              // Update history with completed video
-              if (historyEntryId) {
-                try {
-                  await fetch(`/api/video-history/${historyEntryId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      videoUrl: statusData.videoUrl,
-                      status: 'completed',
-                    }),
-                  });
-                } catch (updateError) {
-                  console.error('Failed to update history:', updateError);
-                }
-              }
-
-              // Update progress
-              setGenerationProgress(prev => 
-                prev.map((item, idx) => 
-                  idx === i ? { ...item, status: "completed", videoUrl: statusData.videoUrl } : item
-                )
-              );
-              successCount++;
-            }
-          } else if (statusData.status === 'FAILED' || 
-                     statusData.status === 'MEDIA_GENERATION_STATUS_FAILED') {
-            completed = true;
-            throw new Error('Video generation failed');
-          }
-        }
-
-        if (!completed) {
-          throw new Error('Video generation timed out');
-        }
-
-        // Add 20-second delay between requests (except for last video)
-        if (i < promptLines.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 20000));
+          console.error(`Failed to start video ${i + 1}:`, result.error);
+          setGenerationProgress(prev => 
+            prev.map((item, idx) => 
+              idx === i ? { ...item, status: "failed", error: result.error } : item
+            )
+          );
+          failedToStartCount++;
+        } else {
+          console.log(`Started video ${i + 1} generation - will complete in background`);
+          startedCount++;
         }
 
       } catch (error: any) {
-        console.error(`Error generating video ${i + 1}:`, error);
-        
-        // Update history with failed status
-        if (historyEntryId) {
-          try {
-            await fetch(`/api/video-history/${historyEntryId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                status: 'failed',
-              }),
-            });
-          } catch (updateError) {
-            console.error('Failed to update history with failed status:', updateError);
-          }
-        }
-        
-        // Update progress with error
+        console.error(`Error starting video ${i + 1}:`, error);
         setGenerationProgress(prev => 
           prev.map((item, idx) => 
             idx === i ? { ...item, status: "failed", error: error.message } : item
           )
         );
-        failureCount++;
+        failedToStartCount++;
+      }
 
-        // Continue with next video even if one fails
+      // Add 20-second delay before starting next video (except for last one)
+      if (i < promptLines.length - 1) {
+        console.log(`Waiting 20 seconds before starting video ${i + 2}...`);
+        await new Promise(resolve => setTimeout(resolve, 20000));
       }
     }
 
-    setIsGenerating(false);
+    // STEP 3: Poll for completion status to update UI
+    // This is just for UI feedback - backend already handles actual completion
+    if (startedCount > 0) {
+      let pollingAttempts = 0;
+      const maxPollingAttempts = 150; // Poll for up to 5 minutes (150 * 2 sec)
+      
+      const pollInterval = setInterval(async () => {
+        pollingAttempts++;
+        
+        try {
+          // Fetch latest history to check status
+          const historyResponse = await fetch('/api/video-history', {
+            credentials: 'include',
+          });
+          
+          if (historyResponse.ok) {
+            const historyData = await historyResponse.json();
+            
+            // Update progress for each video
+            for (let i = 0; i < historyEntryIds.length; i++) {
+              const entryId = historyEntryIds[i];
+              if (!entryId) continue;
+              
+              const videoInHistory = historyData.videos.find((v: any) => v.id === entryId);
+              if (videoInHistory) {
+                setGenerationProgress(prev => 
+                  prev.map((item, idx) => {
+                    if (idx !== i) return item;
+                    
+                    if (videoInHistory.status === 'completed') {
+                      return { ...item, status: "completed", videoUrl: videoInHistory.videoUrl };
+                    } else if (videoInHistory.status === 'failed') {
+                      return { ...item, status: "failed", error: "Generation failed" };
+                    }
+                    return item;
+                  })
+                );
+              }
+            }
+            
+            // Check if all are done
+            const allDone = historyEntryIds.every(entryId => {
+              if (!entryId) return true;
+              const video = historyData.videos.find((v: any) => v.id === entryId);
+              return video && (video.status === 'completed' || video.status === 'failed');
+            });
+            
+            if (allDone || pollingAttempts >= maxPollingAttempts) {
+              clearInterval(pollInterval);
+              setIsGenerating(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error polling history:', error);
+        }
+      }, 2000);
+    } else {
+      setIsGenerating(false);
+    }
     
-    // Show summary toast with actual counts
+    // Show completion toast with summary
     toast({
-      title: "Bulk generation complete",
-      description: `${successCount} video${successCount !== 1 ? 's' : ''} completed successfully${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+      title: "Bulk generation started",
+      description: `${startedCount} video${startedCount !== 1 ? 's' : ''} are being generated${failedToStartCount > 0 ? `, ${failedToStartCount} failed to start` : ''}. Progress will update automatically.`,
     });
   };
 
