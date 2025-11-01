@@ -3,20 +3,13 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { writeFile, mkdir, rm, readFile } from 'fs/promises';
+import { writeFile, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { v2 as cloudinary } from 'cloudinary';
+import { uploadVideoToCloudinary } from './cloudinary';
 
 const execAsync = promisify(exec);
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: 'dajl2ibnc',
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
 
 export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string> {
   if (videoUrls.length === 0) {
@@ -83,28 +76,8 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
     // Step 4: Upload merged video to Cloudinary
     console.log(`[FFmpeg Merger] Uploading merged video to Cloudinary...`);
     
-    const uploadResult = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload(
-        outputFile,
-        {
-          resource_type: 'video',
-          folder: 'cartoon-videos/merged',
-          public_id: `merged-${uniqueId}`,
-          overwrite: true,
-          use_filename: false,
-        },
-        (error, result) => {
-          if (error) {
-            console.error(`[FFmpeg Merger] Cloudinary upload error:`, error);
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        }
-      );
-    });
-
-    const cloudinaryUrl = uploadResult.secure_url;
+    // Read the merged video file and upload to Cloudinary
+    const cloudinaryUrl = await uploadVideoToCloudinary(outputFile);
     console.log(`[FFmpeg Merger] Upload complete! URL: ${cloudinaryUrl}`);
 
     // Step 5: Clean up temp directory
