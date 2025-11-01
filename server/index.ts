@@ -99,6 +99,34 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
+  // Daily history cleanup job - runs at midnight Pakistan time (UTC+5)
+  // Initialize to empty string so cleanup runs on first midnight after server start
+  let lastCleanupDate = '';
+  
+  const checkAndCleanupHistory = async () => {
+    try {
+      const now = new Date();
+      const pktTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+      const currentDate = pktTime.toLocaleDateString('en-US', { timeZone: 'Asia/Karachi' });
+      const currentHour = pktTime.getHours();
+      const currentMinute = pktTime.getMinutes();
+      
+      // Check if it's midnight (00:00-00:01) and we haven't run cleanup today
+      if (currentHour === 0 && currentMinute === 0 && currentDate !== lastCleanupDate) {
+        console.log(`[Daily Cleanup] Running video history cleanup at midnight PKT (${currentDate})`);
+        await storage.clearAllVideoHistory();
+        lastCleanupDate = currentDate;
+        console.log('[Daily Cleanup] Video history cleared successfully');
+      }
+    } catch (error) {
+      console.error('[Daily Cleanup] Error during cleanup:', error);
+    }
+  };
+  
+  // Run cleanup check every minute
+  setInterval(checkAndCleanupHistory, 60000);
+  console.log('[Daily Cleanup] History cleanup job scheduled for midnight PKT');
+
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.

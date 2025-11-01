@@ -403,6 +403,10 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
+  async clearAllVideoHistory(): Promise<void> {
+    await db.delete(videoHistory);
+  }
+
   // Project methods
   async getUserProjects(userId: string): Promise<Project[]> {
     return await db

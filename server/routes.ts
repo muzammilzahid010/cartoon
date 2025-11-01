@@ -899,13 +899,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let completed = false;
           let attempts = 0;
           const maxAttempts = 120; // 4 minutes max (120 * 2 seconds = 240 seconds)
+          const retryAttempt = 60; // 2 minutes (60 * 2 seconds = 120 seconds)
+          let currentOperationName = operationName;
+          let currentSceneId = sceneId;
+          let currentApiKey = apiKey!;
+          let currentRotationToken = rotationToken;
+          let hasRetriedWithNewToken = false;
 
           while (!completed && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             attempts++;
 
+            // After 2 minutes, try with next API token if not completed
+            if (attempts === retryAttempt && !completed && !hasRetriedWithNewToken) {
+              console.log(`[VEO Regenerate] Video ${videoId} not completed after 2 minutes, trying with next API token...`);
+              
+              // Record error for current token
+              if (currentRotationToken) {
+                storage.recordTokenError(currentRotationToken.id);
+              }
+
+              try {
+                // Get next rotation token
+                const nextToken = await storage.getNextRotationToken();
+                
+                if (nextToken && nextToken.id !== currentRotationToken?.id) {
+                  console.log(`[Token Rotation] Switching to next token: ${nextToken.label} (ID: ${nextToken.id})`);
+                  currentApiKey = nextToken.token;
+                  currentRotationToken = nextToken;
+                  await storage.updateTokenUsage(nextToken.id);
+                  
+                  // Start new generation with the new token
+                  const newPayload = {
+                    clientContext: {
+                      projectId: process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb",
+                      tool: "PINHOLE",
+                      userPaygateTier: "PAYGATE_TIER_TWO"
+                    },
+                    requests: [{
+                      aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+                      seed: Math.floor(Math.random() * 100000),
+                      textInput: {
+                        prompt: prompt
+                      },
+                      videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+                      metadata: {
+                        sceneId: `retry-${videoId}-${Date.now()}`
+                      }
+                    }]
+                  };
+
+                  const retryResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${currentApiKey}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newPayload),
+                  });
+
+                  const retryData = await retryResponse.json();
+
+                  if (retryResponse.ok && retryData.operations && retryData.operations.length > 0) {
+                    currentOperationName = retryData.operations[0].operation.name;
+                    currentSceneId = `retry-${videoId}-${Date.now()}`;
+                    hasRetriedWithNewToken = true;
+                    
+                    // Update history with new token ID
+                    await storage.updateVideoHistoryFields(videoId, { tokenUsed: nextToken.id });
+                    console.log(`[VEO Regenerate] Retrying video ${videoId} with new token - Operation: ${currentOperationName}`);
+                  } else {
+                    console.error(`[VEO Regenerate] Failed to retry with new token:`, retryData);
+                  }
+                } else {
+                  console.log(`[VEO Regenerate] No other tokens available for retry`);
+                }
+              } catch (retryError) {
+                console.error(`[VEO Regenerate] Error retrying with new token:`, retryError);
+              }
+            }
+
             try {
-              const statusResult = await checkVideoStatus(operationName, sceneId, apiKey!);
+              const statusResult = await checkVideoStatus(currentOperationName, currentSceneId, currentApiKey);
 
               if (statusResult.status === 'COMPLETED' || 
                   statusResult.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || 
@@ -918,7 +993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     videoUrl: statusResult.videoUrl,
                     status: 'completed',
                   });
-                  console.log(`[VEO Regenerate] Video ${videoId} completed successfully`);
+                  console.log(`[VEO Regenerate] Video ${videoId} completed successfully${hasRetriedWithNewToken ? ' (after token retry)' : ''}`);
                 }
               } else if (statusResult.status === 'FAILED' || 
                          statusResult.status === 'MEDIA_GENERATION_STATUS_FAILED') {
@@ -927,8 +1002,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error(`[VEO Regenerate] Video ${videoId} failed`);
                 
                 // Record token error
-                if (rotationToken) {
-                  storage.recordTokenError(rotationToken.id);
+                if (currentRotationToken) {
+                  storage.recordTokenError(currentRotationToken.id);
                 }
               }
             } catch (pollError) {
@@ -942,8 +1017,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateVideoHistoryFields(videoId, { status: 'failed' });
             
             // Record token error for timeout
-            if (rotationToken) {
-              storage.recordTokenError(rotationToken.id);
+            if (currentRotationToken) {
+              storage.recordTokenError(currentRotationToken.id);
             }
           }
         } catch (bgError) {
