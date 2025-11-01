@@ -216,12 +216,12 @@ export default function VeoGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a2332] via-[#1e2838] to-[#242d3f] dark:from-[#141a25] dark:via-[#181e2a] dark:to-[#1c2230]">
+      <header className="border-b border-white/10 bg-[#1c2534]/80 dark:bg-[#161c28]/80 backdrop-blur-md sticky top-0 z-50 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-          <h1 className="text-base sm:text-lg md:text-xl font-bold gradient-text">VEO 3.1 Video Generator</h1>
+          <h1 className="text-base sm:text-lg md:text-xl font-bold text-white">VEO 3.1 Video Generator</h1>
           <Link href="/">
-            <Button variant="outline" size="sm" className="hover-lift" data-testid="link-home">
+            <Button variant="outline" size="sm" className="hover-lift border-white/20 text-white hover:bg-white/10" data-testid="link-home">
               <Home className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Home</span>
             </Button>
@@ -230,21 +230,21 @@ export default function VeoGenerator() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        <Card className="shadow-xl hover-lift transition-all duration-300 animate-fade-in border-0 bg-white dark:bg-gray-800">
-          <CardHeader className="p-6 md:p-8 border-b border-gray-100 dark:border-gray-700">
-            <CardTitle className="flex items-center gap-3 text-2xl md:text-3xl">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500">
-                <PlayCircle className="w-6 h-6 text-white" />
+        <Card className="shadow-2xl hover-lift transition-all duration-300 animate-fade-in border border-white/10 bg-[#1e2838] dark:bg-[#181e2a]">
+          <CardHeader className="p-6 md:p-8 border-b border-white/10">
+            <CardTitle className="flex items-center gap-3 text-2xl md:text-3xl text-white">
+              <div className="p-2 rounded-xl bg-purple-600/30 border border-purple-500/50">
+                <PlayCircle className="w-6 h-6 text-purple-400" />
               </div>
               Generate AI Video
             </CardTitle>
-            <CardDescription className="text-base mt-2">
+            <CardDescription className="text-base mt-2 text-gray-300">
               Create stunning videos using Google's VEO 3.1 model. Choose your aspect ratio and describe what you want to see.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 p-6 md:p-8">
             <div className="space-y-3">
-              <Label htmlFor="prompt" className="text-base font-semibold">Video Prompt</Label>
+              <Label htmlFor="prompt" className="text-base font-semibold text-white">Video Prompt</Label>
               <Textarea
                 id="prompt"
                 placeholder="Describe your vision in detail... (e.g., A serene sunset over a calm ocean with gentle waves, seagulls flying in the distance)"
@@ -253,48 +253,48 @@ export default function VeoGenerator() {
                 rows={6}
                 disabled={isGenerating}
                 data-testid="textarea-prompt"
-                className="resize-none text-base transition-smooth focus:ring-2 focus:ring-purple-500"
+                className="resize-none text-base transition-smooth focus:ring-2 focus:ring-purple-500 bg-[#242d3f]/50 border-white/10 text-white placeholder:text-gray-400"
               />
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <p className="text-sm text-gray-400 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
                 Be specific and descriptive for best results
               </p>
             </div>
 
             <div className="space-y-4">
-              <Label className="text-base font-semibold">Aspect Ratio</Label>
+              <Label className="text-base font-semibold text-white">Aspect Ratio</Label>
               <RadioGroup
                 value={aspectRatio}
                 onValueChange={(value) => setAspectRatio(value as AspectRatio)}
                 disabled={isGenerating}
                 className="grid grid-cols-1 sm:grid-cols-2 gap-4"
               >
-                <div className="flex items-center space-x-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-purple-500 dark:hover:border-purple-500 transition-all hover-lift cursor-pointer">
+                <div className="flex items-center space-x-3 border-2 border-white/10 rounded-xl p-4 hover:border-purple-500 transition-all hover-lift cursor-pointer bg-white/5">
                   <RadioGroupItem value="landscape" id="landscape" data-testid="radio-landscape" />
-                  <Label htmlFor="landscape" className="font-normal cursor-pointer flex-1">
+                  <Label htmlFor="landscape" className="font-normal cursor-pointer flex-1 text-white">
                     <span className="font-semibold block mb-1">Landscape (16:9)</span>
-                    <span className="text-xs text-muted-foreground">YouTube, presentations</span>
+                    <span className="text-xs text-gray-400">YouTube, presentations</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-purple-500 dark:hover:border-purple-500 transition-all hover-lift cursor-pointer">
+                <div className="flex items-center space-x-3 border-2 border-white/10 rounded-xl p-4 hover:border-purple-500 transition-all hover-lift cursor-pointer bg-white/5">
                   <RadioGroupItem value="portrait" id="portrait" data-testid="radio-portrait" />
-                  <Label htmlFor="portrait" className="font-normal cursor-pointer flex-1">
+                  <Label htmlFor="portrait" className="font-normal cursor-pointer flex-1 text-white">
                     <span className="font-semibold block mb-1">Portrait (9:16)</span>
-                    <span className="text-xs text-muted-foreground">TikTok, Reels, Stories</span>
+                    <span className="text-xs text-gray-400">TikTok, Reels, Stories</span>
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl animate-slide-up">
-                <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <div className="p-4 bg-red-900/30 border-2 border-red-500/50 rounded-xl animate-slide-up">
+                <p className="text-red-200 text-sm">{error}</p>
               </div>
             )}
 
             {videoUrl && (
               <div className="space-y-4 animate-scale-in">
-                <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl ring-4 ring-purple-500/20">
+                <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl ring-4 ring-purple-500/30">
                   <video
                     src={videoUrl}
                     controls
@@ -306,7 +306,7 @@ export default function VeoGenerator() {
                 </div>
                 <Button
                   onClick={handleDownload}
-                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  className="w-full h-12 text-base font-semibold bg-purple-600 hover:bg-purple-700 border-0"
                   data-testid="button-download"
                 >
                   <Download className="w-5 h-5 mr-2" />
@@ -318,7 +318,7 @@ export default function VeoGenerator() {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover-lift"
+              className="w-full h-14 text-lg font-semibold bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift border-0"
               size="lg"
               data-testid="button-generate"
             >
