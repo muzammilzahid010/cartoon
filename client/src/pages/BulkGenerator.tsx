@@ -80,9 +80,14 @@ export default function BulkGenerator() {
     setGenerationProgress(initialProgress);
     setIsGenerating(true);
 
+    // Track success/failure counts
+    let successCount = 0;
+    let failureCount = 0;
+
     // Generate videos sequentially
     for (let i = 0; i < promptLines.length; i++) {
       const currentPrompt = promptLines[i];
+      let historyEntryId: string | null = null;
 
       // Update status to processing
       setGenerationProgress(prev => 
@@ -93,7 +98,6 @@ export default function BulkGenerator() {
 
       try {
         // Save to history as pending
-        let historyEntryId: string | null = null;
         try {
           const historyResponse = await fetch('/api/video-history', {
             method: 'POST',
@@ -179,6 +183,7 @@ export default function BulkGenerator() {
                   idx === i ? { ...item, status: "completed", videoUrl: statusData.videoUrl } : item
                 )
               );
+              successCount++;
             }
           } else if (statusData.status === 'FAILED' || 
                      statusData.status === 'MEDIA_GENERATION_STATUS_FAILED') {
@@ -199,21 +204,40 @@ export default function BulkGenerator() {
       } catch (error: any) {
         console.error(`Error generating video ${i + 1}:`, error);
         
+        // Update history with failed status
+        if (historyEntryId) {
+          try {
+            await fetch(`/api/video-history/${historyEntryId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                status: 'failed',
+              }),
+            });
+          } catch (updateError) {
+            console.error('Failed to update history with failed status:', updateError);
+          }
+        }
+        
         // Update progress with error
         setGenerationProgress(prev => 
           prev.map((item, idx) => 
             idx === i ? { ...item, status: "failed", error: error.message } : item
           )
         );
+        failureCount++;
 
         // Continue with next video even if one fails
       }
     }
 
     setIsGenerating(false);
+    
+    // Show summary toast with actual counts
     toast({
       title: "Bulk generation complete",
-      description: "Check the results below",
+      description: `${successCount} video${successCount !== 1 ? 's' : ''} completed successfully${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
     });
   };
 
