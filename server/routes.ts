@@ -1660,6 +1660,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merge videos with FFmpeg and store temporarily (24 hours)
+  app.post("/api/merge-videos-temporary", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { videoIds, expiryHours = 24 } = req.body;
+
+      if (!Array.isArray(videoIds) || videoIds.length < 2) {
+        return res.status(400).json({ 
+          error: "Invalid input",
+          message: "Please provide at least 2 video IDs to merge"
+        });
+      }
+
+      if (videoIds.length > 19) {
+        return res.status(400).json({ 
+          error: "Too many videos",
+          message: "Cannot merge more than 19 videos at once"
+        });
+      }
+
+      console.log(`[Merge Temporary] Starting temporary merge of ${videoIds.length} videos for user ${userId}`);
+
+      // Get all user videos
+      const userVideos = await storage.getUserVideoHistory(userId);
+
+      // Verify all videos exist and are completed
+      const videoUrls: string[] = [];
+      for (const id of videoIds) {
+        const video = userVideos.find(v => v.id === id);
+        
+        if (!video || video.status !== 'completed' || !video.videoUrl) {
+          return res.status(400).json({ 
+            error: "Invalid video selection",
+            message: `Video ${id} is not available or not completed`
+          });
+        }
+
+        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+          return res.status(400).json({ 
+            error: "Invalid video URL",
+            message: `Video ${id} has an invalid URL`
+          });
+        }
+
+        videoUrls.push(video.videoUrl);
+      }
+
+      console.log(`[Merge Temporary] All videos verified, starting FFmpeg merge`);
+
+      // Merge videos using FFmpeg with temporary storage
+      const { mergeVideosWithFFmpegTemporary } = await import('./videoMergerFFmpeg');
+      const { videoPath, expiresAt } = await mergeVideosWithFFmpegTemporary(videoUrls, expiryHours);
+
+      console.log(`[Merge Temporary] Merge complete!`);
+      console.log(`[Merge Temporary] Video path: ${videoPath}`);
+      console.log(`[Merge Temporary] Expires at: ${expiresAt}`);
+
+      res.json({ 
+        success: true,
+        videoPath,
+        expiresAt,
+        previewUrl: videoPath,
+        message: `Video will be available for ${expiryHours} hours`
+      });
+
+    } catch (error) {
+      console.error("Error in /api/merge-videos-temporary:", error);
+      res.status(500).json({ 
+        error: "Failed to merge videos temporarily",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get temporary video expiry information
+  app.get("/api/temp-video-info", requireAuth, async (req, res) => {
+    try {
+      const { videoPath } = req.query;
+
+      if (!videoPath || typeof videoPath !== 'string') {
+        return res.status(400).json({ 
+          error: "Invalid input",
+          message: "videoPath is required"
+        });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      
+      const info = await objectStorageService.getVideoExpiryInfo(videoPath);
+
+      res.json({ 
+        success: true,
+        ...info
+      });
+
+    } catch (error) {
+      console.error("Error in /api/temp-video-info:", error);
+      res.status(500).json({ 
+        error: "Failed to get video info",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Cleanup expired temporary videos (admin only)
+  app.post("/api/cleanup-expired-videos", requireAdmin, async (req, res) => {
+    try {
+      console.log(`[Cleanup] Starting cleanup of expired videos`);
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      
+      const deletedCount = await objectStorageService.cleanupExpiredVideos();
+
+      console.log(`[Cleanup] Cleanup complete, deleted ${deletedCount} videos`);
+
+      res.json({ 
+        success: true,
+        deletedCount,
+        message: `Deleted ${deletedCount} expired videos`
+      });
+
+    } catch (error) {
+      console.error("Error in /api/cleanup-expired-videos:", error);
+      res.status(500).json({ 
+        error: "Failed to cleanup expired videos",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
 
   // Project endpoints
   app.get("/api/projects", requireAuth, async (req, res) => {

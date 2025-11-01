@@ -8,8 +8,10 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
+import { ObjectStorageService } from './objectStorage';
 
 const execAsync = promisify(exec);
+const objectStorageService = new ObjectStorageService();
 
 // Configure Cloudinary
 cloudinary.config({
@@ -127,6 +129,102 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
       }
     } catch (cleanupError) {
       console.error(`[FFmpeg Merger] Error cleanup failed:`, cleanupError);
+    }
+    
+    throw new Error(`Failed to merge videos with FFmpeg: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function mergeVideosWithFFmpegTemporary(
+  videoUrls: string[], 
+  expiryHours: number = 24
+): Promise<{ videoPath: string; expiresAt: string }> {
+  if (videoUrls.length === 0) {
+    throw new Error('No video URLs provided for merging');
+  }
+
+  if (videoUrls.length > 19) {
+    throw new Error('Cannot merge more than 19 videos at once');
+  }
+
+  const uniqueId = randomUUID();
+  const tempDir = path.join('/tmp', `video-merge-${uniqueId}`);
+  const listFile = path.join(tempDir, 'filelist.txt');
+  const outputFile = path.join(tempDir, 'merged-output.mp4');
+
+  try {
+    if (!existsSync(tempDir)) {
+      await mkdir(tempDir, { recursive: true });
+    }
+
+    console.log(`[FFmpeg Temporary] Starting merge of ${videoUrls.length} videos in ${tempDir}`);
+
+    const downloadedFiles: string[] = [];
+    for (let i = 0; i < videoUrls.length; i++) {
+      const filename = path.join(tempDir, `video-${i + 1}.mp4`);
+      console.log(`[FFmpeg Temporary] Downloading video ${i + 1}/${videoUrls.length}...`);
+      
+      const response = await fetch(videoUrls[i]);
+      if (!response.ok) {
+        throw new Error(`Failed to download video ${i + 1}: ${response.statusText}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      await writeFile(filename, Buffer.from(buffer));
+      downloadedFiles.push(filename);
+      console.log(`[FFmpeg Temporary] Downloaded video ${i + 1} (${buffer.byteLength} bytes)`);
+    }
+
+    const fileListContent = downloadedFiles
+      .map(file => `file '${file}'`)
+      .join('\n');
+    await writeFile(listFile, fileListContent);
+    console.log(`[FFmpeg Temporary] Created file list with ${downloadedFiles.length} videos`);
+
+    console.log(`[FFmpeg Temporary] Running FFmpeg to merge videos...`);
+    const ffmpegCommand = `ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${outputFile}"`;
+    
+    try {
+      const { stdout, stderr } = await execAsync(ffmpegCommand, { maxBuffer: 1024 * 1024 * 10 });
+      console.log(`[FFmpeg Temporary] FFmpeg completed successfully`);
+      if (stderr) {
+        console.log(`[FFmpeg Temporary] FFmpeg stderr:`, stderr.substring(0, 500));
+      }
+    } catch (ffmpegError: any) {
+      console.error(`[FFmpeg Temporary] FFmpeg error:`, ffmpegError.stderr || ffmpegError.message);
+      throw new Error(`FFmpeg failed: ${ffmpegError.message}`);
+    }
+
+    console.log(`[FFmpeg Temporary] Uploading to temporary storage (expires in ${expiryHours} hours)...`);
+    const videoPath = await objectStorageService.uploadTemporaryVideo(outputFile, expiryHours);
+
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + expiryHours);
+
+    console.log(`[FFmpeg Temporary] Upload complete! Path: ${videoPath}`);
+    console.log(`[FFmpeg Temporary] Expires at: ${expiryDate.toISOString()}`);
+
+    try {
+      await rm(tempDir, { recursive: true, force: true });
+      console.log(`[FFmpeg Temporary] Cleanup successful`);
+    } catch (cleanupError) {
+      console.error(`[FFmpeg Temporary] Cleanup failed:`, cleanupError);
+    }
+
+    return {
+      videoPath,
+      expiresAt: expiryDate.toISOString()
+    };
+  } catch (error) {
+    console.error(`[FFmpeg Temporary] Error during merge process:`, error);
+    
+    try {
+      if (existsSync(tempDir)) {
+        await rm(tempDir, { recursive: true, force: true });
+        console.log(`[FFmpeg Temporary] Error cleanup successful`);
+      }
+    } catch (cleanupError) {
+      console.error(`[FFmpeg Temporary] Error cleanup failed:`, cleanupError);
     }
     
     throw new Error(`Failed to merge videos with FFmpeg: ${error instanceof Error ? error.message : 'Unknown error'}`);

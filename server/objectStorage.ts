@@ -118,6 +118,87 @@ export class ObjectStorageService {
     console.log(`[Object Storage] Upload complete`);
     return `/videos/merged/${videoId}.mp4`;
   }
+
+  async uploadTemporaryVideo(localFilePath: string, expiryHours: number = 24): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const videoId = randomUUID();
+    const fullPath = `${privateObjectDir}/temp/${videoId}.mp4`;
+
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + expiryHours);
+
+    console.log(`[Object Storage] Uploading temporary video to: ${fullPath}`);
+    console.log(`[Object Storage] Video will expire at: ${expiryDate.toISOString()}`);
+
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    await file.save(createReadStream(localFilePath), {
+      metadata: {
+        contentType: "video/mp4",
+        metadata: {
+          expiresAt: expiryDate.toISOString(),
+          isTemporary: "true",
+        },
+      },
+      public: true,
+    });
+
+    console.log(`[Object Storage] Temporary video upload complete`);
+    return `/videos/temp/${videoId}.mp4`;
+  }
+
+  async cleanupExpiredVideos(): Promise<number> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const tempPath = `${privateObjectDir}/temp/`;
+    
+    console.log(`[Object Storage] Starting cleanup of expired videos in: ${tempPath}`);
+
+    const { bucketName, objectName } = parseObjectPath(tempPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+
+    try {
+      const [files] = await bucket.getFiles({ prefix: objectName });
+      let deletedCount = 0;
+      const now = new Date();
+
+      for (const file of files) {
+        try {
+          const [metadata] = await file.getMetadata();
+          const expiresAt = metadata.metadata?.expiresAt;
+
+          if (expiresAt && typeof expiresAt === 'string' && new Date(expiresAt) < now) {
+            await file.delete();
+            deletedCount++;
+            console.log(`[Object Storage] Deleted expired video: ${file.name}`);
+          }
+        } catch (error) {
+          console.error(`[Object Storage] Error processing file ${file.name}:`, error);
+        }
+      }
+
+      console.log(`[Object Storage] Cleanup complete. Deleted ${deletedCount} expired videos`);
+      return deletedCount;
+    } catch (error) {
+      console.error(`[Object Storage] Error during cleanup:`, error);
+      return 0;
+    }
+  }
+
+  async getVideoExpiryInfo(videoPath: string): Promise<{ expiresAt: string | null; isExpired: boolean }> {
+    try {
+      const file = await this.getObjectEntityFile(videoPath);
+      const [metadata] = await file.getMetadata();
+      const expiresAtRaw = metadata.metadata?.expiresAt;
+      const expiresAt = typeof expiresAtRaw === 'string' ? expiresAtRaw : null;
+      const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false;
+
+      return { expiresAt, isExpired };
+    } catch (error) {
+      return { expiresAt: null, isExpired: false };
+    }
+  }
 }
 
 function parseObjectPath(path: string): {
