@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,15 @@ interface VideoGenerationStatus {
   tokenLabel?: string | null;
 }
 
+const STORAGE_KEY = 'bulkGeneratorResults';
+const STORAGE_META_KEY = 'bulkGeneratorMeta';
+
+interface BulkGenerationMeta {
+  historyEntryIds: (string | null)[];
+  isGenerating: boolean;
+  timestamp: number;
+}
+
 export default function BulkGenerator() {
   const [prompts, setPrompts] = useState("");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("landscape");
@@ -27,6 +36,8 @@ export default function BulkGenerator() {
   const [generationProgress, setGenerationProgress] = useState<VideoGenerationStatus[]>([]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const historyEntryIdsRef = useRef<(string | null)[]>([]);
 
   const { data: session, isLoading: sessionLoading } = useQuery<{
     authenticated: boolean;
@@ -34,6 +45,97 @@ export default function BulkGenerator() {
   }>({
     queryKey: ["/api/session"],
   });
+
+  // Load previous results from localStorage on mount and check for updates
+  useEffect(() => {
+    const loadAndSync = async () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const savedMeta = localStorage.getItem(STORAGE_META_KEY);
+        
+        if (saved && savedMeta) {
+          const parsed = JSON.parse(saved);
+          const meta: BulkGenerationMeta = JSON.parse(savedMeta);
+          
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setGenerationProgress(parsed);
+            historyEntryIdsRef.current = meta.historyEntryIds;
+            
+            // Check if there are any in-progress videos
+            const hasInProgress = parsed.some(v => 
+              v.status === 'pending' || v.status === 'processing'
+            );
+            
+            if (hasInProgress && meta.historyEntryIds.length > 0) {
+              // Sync with server immediately to update status
+              try {
+                const historyResponse = await fetch('/api/video-history', {
+                  credentials: 'include',
+                });
+                
+                if (historyResponse.ok) {
+                  const historyData = await historyResponse.json();
+                  
+                  // Update progress with latest status from server
+                  setGenerationProgress(prev => 
+                    prev.map((item, idx) => {
+                      const entryId = meta.historyEntryIds[idx];
+                      if (!entryId) return item;
+                      
+                      const videoInHistory = historyData.videos.find((v: any) => v.id === entryId);
+                      if (videoInHistory) {
+                        if (videoInHistory.status === 'completed') {
+                          return { ...item, status: "completed", videoUrl: videoInHistory.videoUrl };
+                        } else if (videoInHistory.status === 'failed') {
+                          return { ...item, status: "failed", error: "Generation failed" };
+                        }
+                      }
+                      return item;
+                    })
+                  );
+                }
+              } catch (syncError) {
+                console.error('Failed to sync with server:', syncError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load saved results:', error);
+      }
+    };
+    
+    loadAndSync();
+  }, []);
+
+  // Save results to localStorage whenever they change
+  useEffect(() => {
+    if (generationProgress.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(generationProgress));
+        
+        // Also save metadata
+        const meta: BulkGenerationMeta = {
+          historyEntryIds: historyEntryIdsRef.current,
+          isGenerating,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(STORAGE_META_KEY, JSON.stringify(meta));
+      } catch (error) {
+        console.error('Failed to save results:', error);
+      }
+    }
+  }, [generationProgress, isGenerating]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -48,6 +150,12 @@ export default function BulkGenerator() {
   }, [session, sessionLoading, setLocation, toast]);
 
   const handleGenerate = async () => {
+    // Clear any existing polling interval before starting new generation
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
     // Parse prompts (one per line)
     const promptLines = prompts
       .split('\n')
@@ -73,7 +181,7 @@ export default function BulkGenerator() {
       return;
     }
 
-    // Initialize progress tracking
+    // Initialize progress tracking (this also clears previous results)
     const initialProgress: VideoGenerationStatus[] = promptLines.map(prompt => ({
       prompt,
       status: "pending",
@@ -113,6 +221,9 @@ export default function BulkGenerator() {
         console.error('Failed to save to history:', historyError);
       }
     }
+
+    // Save history IDs to ref for persistence
+    historyEntryIdsRef.current = historyEntryIds;
 
     // STEP 2: Start video generation with 20-second delay between each
     // Videos will process in parallel/background
@@ -200,7 +311,7 @@ export default function BulkGenerator() {
       let pollingAttempts = 0;
       const maxPollingAttempts = 150; // Poll for up to 5 minutes (150 * 2 sec)
       
-      const pollInterval = setInterval(async () => {
+      pollingIntervalRef.current = setInterval(async () => {
         pollingAttempts++;
         
         try {
@@ -242,7 +353,10 @@ export default function BulkGenerator() {
             });
             
             if (allDone || pollingAttempts >= maxPollingAttempts) {
-              clearInterval(pollInterval);
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
               setIsGenerating(false);
             }
           }
