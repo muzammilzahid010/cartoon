@@ -92,7 +92,6 @@ export default function BulkGenerator() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            userId: '',
             prompt: currentPrompt,
             aspectRatio,
             status: 'queued',

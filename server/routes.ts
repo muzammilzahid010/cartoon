@@ -470,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prompt: z.string().min(10, "Prompt must be at least 10 characters"),
         aspectRatio: z.enum(["landscape", "portrait"]),
         videoUrl: z.string().optional(),
-        status: z.enum(["pending", "completed", "failed"]),
+        status: z.enum(["pending", "completed", "failed", "queued"]),
         title: z.string().optional(),
         tokenUsed: z.string().optional(),
       });
@@ -509,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const schema = z.object({
-        status: z.enum(["pending", "completed", "failed"]),
+        status: z.enum(["pending", "completed", "failed", "queued"]),
         videoUrl: z.string().optional(),
       });
 
