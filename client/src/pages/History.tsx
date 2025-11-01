@@ -101,6 +101,39 @@ export default function History() {
     },
   });
 
+  const retryMergeMutation = useMutation({
+    mutationFn: async (videoId: string) => {
+      const response = await fetch(`/api/retry-merge/${videoId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to retry merge');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Merge Retry Started",
+        description: "Your videos are being merged again. This may take a few minutes.",
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Retry Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!sessionLoading && session && !session.authenticated) {
@@ -387,25 +420,75 @@ export default function History() {
           </>
         )}
 
-        {/* Show regenerate button for ALL videos when enabled */}
-        {showRegenerateButton && (
-          <Button
-            onClick={() => regenerateMutation.mutate({ 
-              sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
-              prompt: video.prompt,
-              videoId: video.id,
-              projectId: video.projectId || undefined
-            })}
-            variant="outline"
-            className="w-full border-white/20 text-white hover:bg-white/10"
-            size="sm"
-            disabled={regenerateMutation.isPending || video.status === 'queued'}
-            data-testid={`button-regenerate-${video.id}`}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Regenerate
-          </Button>
-        )}
+        {/* Check if this is a merged video (has metadata with mergedVideoIds) */}
+        {(() => {
+          try {
+            const metadata = video.metadata ? JSON.parse(video.metadata) : null;
+            const isMergedVideo = metadata?.mergedVideoIds && Array.isArray(metadata.mergedVideoIds);
+            
+            // Show retry button for failed merged videos
+            if (isMergedVideo && video.status === 'failed') {
+              return (
+                <Button
+                  onClick={() => retryMergeMutation.mutate(video.id)}
+                  variant="outline"
+                  className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10"
+                  size="sm"
+                  disabled={retryMergeMutation.isPending}
+                  data-testid={`button-retry-merge-${video.id}`}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry Merge
+                </Button>
+              );
+            }
+            
+            // Show regenerate button for regular videos when enabled
+            if (showRegenerateButton && !isMergedVideo) {
+              return (
+                <Button
+                  onClick={() => regenerateMutation.mutate({ 
+                    sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                    prompt: video.prompt,
+                    videoId: video.id,
+                    projectId: video.projectId || undefined
+                  })}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                  size="sm"
+                  disabled={regenerateMutation.isPending || video.status === 'queued'}
+                  data-testid={`button-regenerate-${video.id}`}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate
+                </Button>
+              );
+            }
+          } catch (e) {
+            // If metadata parsing fails, show normal regenerate button
+            if (showRegenerateButton) {
+              return (
+                <Button
+                  onClick={() => regenerateMutation.mutate({ 
+                    sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                    prompt: video.prompt,
+                    videoId: video.id,
+                    projectId: video.projectId || undefined
+                  })}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                  size="sm"
+                  disabled={regenerateMutation.isPending || video.status === 'queued'}
+                  data-testid={`button-regenerate-${video.id}`}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate
+                </Button>
+              );
+            }
+          }
+          return null;
+        })()}
       </CardContent>
     </Card>
   );

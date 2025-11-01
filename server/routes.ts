@@ -1506,22 +1506,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[Merge Selected] All videos verified, proceeding with merge`);
 
-      // Import the FFmpeg merger function
-      const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
-      
-      // Merge videos using local FFmpeg
-      const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
-      console.log(`[Merge Selected] Videos merged successfully with FFmpeg`);
-      console.log(`[Merge Selected] Merged video URL: ${mergedVideoUrl}`);
-
-      res.json({ 
-        success: true,
-        mergedVideoUrl: mergedVideoUrl
+      // Create a video history entry for this merge operation
+      const mergeHistoryEntry = await storage.addVideoHistory({
+        userId,
+        prompt: `Merged video from ${videoIds.length} selected videos`,
+        aspectRatio: "16:9",
+        status: "pending",
+        metadata: JSON.stringify({ mergedVideoIds: videoIds }),
+        title: `Merged Video (${videoIds.length} clips)`,
       });
+
+      try {
+        // Import the FFmpeg merger function
+        const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
+        
+        // Merge videos using local FFmpeg
+        const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
+        console.log(`[Merge Selected] Videos merged successfully with FFmpeg`);
+        console.log(`[Merge Selected] Merged video URL: ${mergedVideoUrl}`);
+
+        // Update the video history entry with success
+        await storage.updateVideoHistoryFields(mergeHistoryEntry.id, {
+          status: 'completed',
+          videoUrl: mergedVideoUrl,
+        });
+
+        res.json({ 
+          success: true,
+          mergedVideoUrl: mergedVideoUrl,
+          historyId: mergeHistoryEntry.id
+        });
+      } catch (mergeError) {
+        console.error("[Merge Selected] Merge failed:", mergeError);
+        
+        // Update the video history entry with failure
+        await storage.updateVideoHistoryFields(mergeHistoryEntry.id, {
+          status: 'failed',
+        });
+
+        throw mergeError;
+      }
     } catch (error) {
       console.error("Error in /api/merge-selected-videos:", error);
       res.status(500).json({ 
         error: "Failed to merge selected videos",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Retry a failed merge operation
+  app.post("/api/retry-merge/:id", requireAuth, async (req, res) => {
+    try {
+      const videoId = req.params.id;
+      const userId = req.session.userId!;
+
+      console.log(`[Retry Merge] Starting retry for merge video ${videoId} by user ${userId}`);
+
+      // Get the video history entry
+      const userVideos = await storage.getUserVideoHistory(userId);
+      const mergeVideo = userVideos.find(v => v.id === videoId);
+
+      if (!mergeVideo) {
+        return res.status(404).json({ 
+          error: "Video not found",
+          message: "Merge video not found or does not belong to you"
+        });
+      }
+
+      // Parse metadata to get original video IDs
+      if (!mergeVideo.metadata) {
+        return res.status(400).json({ 
+          error: "Invalid merge video",
+          message: "This video does not have merge metadata"
+        });
+      }
+
+      const metadata = JSON.parse(mergeVideo.metadata);
+      const videoIds = metadata.mergedVideoIds as string[];
+
+      if (!videoIds || !Array.isArray(videoIds) || videoIds.length < 2) {
+        return res.status(400).json({ 
+          error: "Invalid metadata",
+          message: "Merge metadata is invalid or missing video IDs"
+        });
+      }
+
+      console.log(`[Retry Merge] Retrying merge of ${videoIds.length} videos`);
+
+      // Verify all videos still exist and are completed
+      const videoUrls: string[] = [];
+      for (const id of videoIds) {
+        const video = userVideos.find(v => v.id === id);
+        
+        if (!video || video.status !== 'completed' || !video.videoUrl) {
+          return res.status(400).json({ 
+            error: "Invalid source videos",
+            message: `One or more source videos are no longer available or completed`
+          });
+        }
+
+        // Verify URL is from Cloudinary
+        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+          return res.status(400).json({ 
+            error: "Invalid video URL",
+            message: `Video ${id} has an invalid URL`
+          });
+        }
+
+        videoUrls.push(video.videoUrl);
+      }
+
+      // Update status to pending
+      await storage.updateVideoHistoryFields(videoId, {
+        status: 'pending',
+        videoUrl: null,
+      });
+
+      // Send immediate response
+      res.json({ 
+        success: true,
+        message: "Merge retry started",
+        videoId: videoId
+      });
+
+      // Perform merge in background
+      (async () => {
+        try {
+          const { mergeVideosWithFFmpeg } = await import('./videoMergerFFmpeg');
+          const mergedVideoUrl = await mergeVideosWithFFmpeg(videoUrls);
+          
+          console.log(`[Retry Merge] Retry successful for video ${videoId}`);
+          
+          await storage.updateVideoHistoryFields(videoId, {
+            status: 'completed',
+            videoUrl: mergedVideoUrl,
+          });
+        } catch (mergeError) {
+          console.error(`[Retry Merge] Retry failed for video ${videoId}:`, mergeError);
+          
+          await storage.updateVideoHistoryFields(videoId, {
+            status: 'failed',
+          });
+        }
+      })();
+
+    } catch (error) {
+      console.error("Error in /api/retry-merge:", error);
+      res.status(500).json({ 
+        error: "Failed to retry merge",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

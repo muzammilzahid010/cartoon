@@ -144,6 +144,7 @@ export const videoHistory = pgTable("video_history", {
   createdAt: text("created_at").notNull().default(sql`now()::text`),
   title: text("title"),
   tokenUsed: varchar("token_used").references(() => apiTokens.id),
+  metadata: text("metadata"), // JSON string for merge info: { mergedVideoIds: string[] }
 });
 
 export const insertVideoHistorySchema = createInsertSchema(videoHistory).omit({
