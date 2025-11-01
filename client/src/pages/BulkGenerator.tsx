@@ -134,7 +134,21 @@ export default function BulkGenerator() {
           throw new Error(result.error || 'Failed to start video generation');
         }
 
-        const { operationName, sceneId } = result;
+        const { operationName, sceneId, tokenId } = result;
+
+        // Update history with token ID if available
+        if (historyEntryId && tokenId) {
+          try {
+            await fetch(`/api/video-history/${historyEntryId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ tokenUsed: tokenId }),
+            });
+          } catch (historyError) {
+            console.error('Failed to update history with token ID:', historyError);
+          }
+        }
 
         // Poll for video status
         let completed = false;

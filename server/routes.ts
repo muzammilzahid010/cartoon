@@ -715,7 +715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         operationName: result.operationName,
         sceneId: result.sceneId,
         sceneNumber: scene.scene,
-        status: "PENDING"
+        status: "PENDING",
+        tokenId: rotationToken?.id || null
       });
     } catch (error) {
       console.error("Error in /api/generate-video:", error);
@@ -842,7 +843,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         operationName,
         sceneId,
         videoId,
-        message: "Video regeneration started"
+        message: "Video regeneration started",
+        tokenId: rotationToken?.id || null
       });
     } catch (error) {
       console.error("Error in /api/regenerate-video:", error);
