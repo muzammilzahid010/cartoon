@@ -251,8 +251,17 @@ export class DatabaseStorage implements IStorage {
     
     // Execute deletion and insertion in a single transaction
     return await db.transaction(async (tx) => {
+      // First, nullify all tokenUsed references in video_history to avoid foreign key constraint
+      await tx
+        .update(videoHistory)
+        .set({ tokenUsed: null });
+      
+      console.log('[Bulk Replace] Nullified all tokenUsed references in video history');
+      
       // Delete all existing tokens
       await tx.delete(apiTokens);
+      
+      console.log('[Bulk Replace] Deleted all old tokens');
       
       // Add all new tokens with auto-generated labels
       const newTokens: ApiToken[] = [];
@@ -267,6 +276,8 @@ export class DatabaseStorage implements IStorage {
           .returning();
         newTokens.push(token);
       }
+      
+      console.log(`[Bulk Replace] Added ${newTokens.length} new tokens`);
       
       return newTokens;
     });
