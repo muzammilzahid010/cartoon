@@ -456,6 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoUrl: z.string().optional(),
         status: z.enum(["pending", "completed", "failed"]),
         title: z.string().optional(),
+        tokenUsed: z.string().optional(),
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -651,7 +652,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         operationName,
         sceneId,
-        status: "PENDING"
+        status: "PENDING",
+        tokenId: rotationToken?.id || null
       });
     } catch (error) {
       console.error("Error in /api/generate-veo-video:", error);

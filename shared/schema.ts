@@ -143,6 +143,7 @@ export const videoHistory = pgTable("video_history", {
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
   title: text("title"),
+  tokenUsed: varchar("token_used").references(() => apiTokens.id),
 });
 
 export const insertVideoHistorySchema = createInsertSchema(videoHistory).omit({
