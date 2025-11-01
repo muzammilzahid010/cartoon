@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
-import { Home, Loader2, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Home, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 
@@ -270,19 +270,19 @@ export default function BulkGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-      <div className="max-w-6xl mx-auto py-8">
-        <div className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto py-6 md:py-10">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8 animate-slide-up">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text mb-2">
               Bulk Video Generator
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Generate up to 20 videos at once using VEO 3 AI
+            <p className="text-gray-600 dark:text-gray-400 text-base md:text-lg">
+              Generate up to 20 videos at once with smart API token rotation
             </p>
           </div>
           <Link href="/">
-            <Button variant="outline" data-testid="button-home" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+            <Button variant="outline" className="hover-lift self-start md:self-auto" data-testid="button-home">
               <Home className="w-4 h-4 mr-2" />
               Home
             </Button>
@@ -291,52 +291,62 @@ export default function BulkGenerator() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Input Section */}
-          <Card className="shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">Video Prompts</CardTitle>
+          <Card className="shadow-2xl hover-lift transition-all duration-300 animate-fade-in border-0 bg-white dark:bg-gray-800">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4">
+              <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-purple-600" />
+                Video Prompts
+              </CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-400">
                 Enter up to 20 prompts (one per line)
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-6">
               <div>
-                <Label htmlFor="prompts" className="text-gray-700 dark:text-gray-300">
-                  Prompts ({promptCount}/20)
-                </Label>
+                <div className="flex items-center justify-between mb-3">
+                  <Label htmlFor="prompts" className="text-gray-700 dark:text-gray-300 font-semibold">
+                    Prompts ({promptCount}/20)
+                  </Label>
+                  {promptCount > 0 && promptCount <= 20 && (
+                    <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                      ✓ Ready
+                    </span>
+                  )}
+                </div>
                 <Textarea
                   id="prompts"
                   value={prompts}
                   onChange={(e) => setPrompts(e.target.value)}
                   placeholder="A dog running on the beach&#10;A sunset over mountains&#10;A city street at night&#10;..."
-                  className="min-h-[300px] mt-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  className="min-h-[280px] md:min-h-[320px] transition-smooth focus:ring-2 focus:ring-purple-500 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm md:text-base"
                   disabled={isGenerating}
                   data-testid="input-bulk-prompts"
                 />
                 {promptCount > 20 && (
-                  <p className="text-sm text-red-600 dark:text-red-400 mt-2">
-                    <AlertCircle className="w-4 h-4 inline mr-1" />
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-2 flex items-center gap-2 animate-slide-up">
+                    <AlertCircle className="w-4 h-4" />
                     Maximum 20 prompts allowed
                   </p>
                 )}
               </div>
 
               <div>
-                <Label className="text-gray-700 dark:text-gray-300 mb-3 block">Aspect Ratio</Label>
+                <Label className="text-gray-700 dark:text-gray-300 mb-4 block font-semibold">Aspect Ratio</Label>
                 <RadioGroup
                   value={aspectRatio}
                   onValueChange={(value) => setAspectRatio(value as AspectRatio)}
                   disabled={isGenerating}
-                  className="grid grid-cols-2 gap-4"
+                  className="grid grid-cols-2 gap-3"
                 >
-                  <div className="flex items-center space-x-2 border rounded-lg p-3 dark:border-gray-600">
+                  <div className="flex items-center space-x-2 border-2 border-gray-200 dark:border-gray-600 rounded-xl p-3 md:p-4 hover:border-purple-500 dark:hover:border-purple-500 transition-all hover-lift cursor-pointer">
                     <RadioGroupItem value="landscape" id="landscape" data-testid="radio-landscape" />
-                    <Label htmlFor="landscape" className="cursor-pointer dark:text-gray-300">
+                    <Label htmlFor="landscape" className="cursor-pointer dark:text-gray-300 text-sm md:text-base font-medium">
                       Landscape (16:9)
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-3 dark:border-gray-600">
+                  <div className="flex items-center space-x-2 border-2 border-gray-200 dark:border-gray-600 rounded-xl p-3 md:p-4 hover:border-purple-500 dark:hover:border-purple-500 transition-all hover-lift cursor-pointer">
                     <RadioGroupItem value="portrait" id="portrait" data-testid="radio-portrait" />
-                    <Label htmlFor="portrait" className="cursor-pointer dark:text-gray-300">
+                    <Label htmlFor="portrait" className="cursor-pointer dark:text-gray-300 text-sm md:text-base font-medium">
                       Portrait (9:16)
                     </Label>
                   </div>
@@ -346,41 +356,47 @@ export default function BulkGenerator() {
               <Button
                 onClick={handleGenerate}
                 disabled={isGenerating || promptCount === 0 || promptCount > 20}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500"
+                className="w-full h-12 md:h-14 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover-lift text-base md:text-lg font-semibold"
                 data-testid="button-generate-bulk"
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Generating ({completedCount + failedCount}/{generationProgress.length})
                   </>
                 ) : (
-                  `Generate ${promptCount} Video${promptCount !== 1 ? 's' : ''}`
+                  <>
+                    <Layers className="w-5 h-5 mr-2" />
+                    Generate {promptCount} Video{promptCount !== 1 ? 's' : ''}
+                  </>
                 )}
               </Button>
             </CardContent>
           </Card>
 
           {/* Progress Section */}
-          <Card className="shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">Generation Progress</CardTitle>
+          <Card className="shadow-2xl hover-lift transition-all duration-300 animate-fade-in border-0 bg-white dark:bg-gray-800" style={{animationDelay: '0.1s'}}>
+            <CardHeader className="border-b border-gray-100 dark:border-gray-700 pb-4">
+              <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-600" />
+                Generation Progress
+              </CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-400">
-                Track the status of each video
+                Track the status of each video in real-time
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {generationProgress.length > 0 && (
-                <div className="mb-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600 dark:text-gray-400">
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl">
+                  <div className="flex justify-between text-sm mb-3">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">
                       Overall Progress
                     </span>
-                    <span className="text-gray-900 dark:text-white font-medium">
+                    <span className="text-gray-900 dark:text-white font-bold">
                       {completedCount + failedCount}/{generationProgress.length}
                     </span>
                   </div>
-                  <Progress value={progressPercentage} className="h-2" />
+                  <Progress value={progressPercentage} className="h-3" />
                 </div>
               )}
 

@@ -75,17 +75,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-      <Card className="w-full max-w-md shadow-xl dark:bg-gray-800 dark:border-gray-700">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500">
-              <Film className="w-8 h-8 text-white dark:text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+      <Card className="w-full max-w-md shadow-2xl dark:bg-gray-800/50 dark:border-gray-700 animate-scale-in backdrop-blur-sm">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="flex justify-center mb-2">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 shadow-lg transform transition-transform hover:scale-105 duration-300">
+              <Film className="w-10 h-10 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">Welcome Back</CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-400">
-            Sign in to access the Cartoon Story Video Generator
+          <CardTitle className="text-3xl md:text-4xl font-bold gradient-text">Welcome Back</CardTitle>
+          <CardDescription className="text-base text-gray-600 dark:text-gray-400">
+            Sign in to create amazing AI-powered videos
           </CardDescription>
         </CardHeader>
         <CardContent>
