@@ -1503,10 +1503,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        videoUrls.push(video.videoUrl);
+        // If video is from Google Cloud Storage, migrate it to Cloudinary first
+        let finalVideoUrl = video.videoUrl;
+        if (isGoogleStorage) {
+          console.log(`[Merge Selected] Migrating video ${videoId} from Google Cloud Storage to Cloudinary...`);
+          try {
+            const { uploadVideoToCloudinary } = await import('./cloudinary');
+            const cloudinaryUrl = await uploadVideoToCloudinary(video.videoUrl);
+            
+            // Update video history with new Cloudinary URL
+            await storage.updateVideoHistoryFields(videoId, {
+              videoUrl: cloudinaryUrl,
+            });
+            
+            finalVideoUrl = cloudinaryUrl;
+            console.log(`[Merge Selected] Migration successful for video ${videoId}`);
+          } catch (uploadError) {
+            console.error(`[Merge Selected] Failed to migrate video ${videoId}:`, uploadError);
+            throw new Error(`Failed to migrate video to Cloudinary: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          }
+        }
+
+        videoUrls.push(finalVideoUrl);
       }
 
-      console.log(`[Merge Selected] All videos verified, proceeding with merge`);
+      console.log(`[Merge Selected] All videos verified and migrated to Cloudinary, proceeding with merge`);
 
       // Create a video history entry for this merge operation
       const mergeHistoryEntry = await storage.addVideoHistory({
@@ -1618,7 +1639,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        videoUrls.push(video.videoUrl);
+        // If video is from Google Cloud Storage, migrate it to Cloudinary first
+        let finalVideoUrl = video.videoUrl;
+        if (isGoogleStorage) {
+          console.log(`[Retry Merge] Migrating video ${id} from Google Cloud Storage to Cloudinary...`);
+          try {
+            const { uploadVideoToCloudinary } = await import('./cloudinary');
+            const cloudinaryUrl = await uploadVideoToCloudinary(video.videoUrl);
+            
+            // Update video history with new Cloudinary URL
+            await storage.updateVideoHistoryFields(id, {
+              videoUrl: cloudinaryUrl,
+            });
+            
+            finalVideoUrl = cloudinaryUrl;
+            console.log(`[Retry Merge] Migration successful for video ${id}`);
+          } catch (uploadError) {
+            console.error(`[Retry Merge] Failed to migrate video ${id}:`, uploadError);
+            throw new Error(`Failed to migrate video to Cloudinary: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          }
+        }
+
+        videoUrls.push(finalVideoUrl);
       }
 
       // Update status to pending
@@ -1711,10 +1753,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        videoUrls.push(video.videoUrl);
+        // If video is from Google Cloud Storage, migrate it to Cloudinary first
+        let finalVideoUrl = video.videoUrl;
+        if (isGoogleStorage) {
+          console.log(`[Merge Temporary] Migrating video ${id} from Google Cloud Storage to Cloudinary...`);
+          try {
+            const { uploadVideoToCloudinary } = await import('./cloudinary');
+            const cloudinaryUrl = await uploadVideoToCloudinary(video.videoUrl);
+            
+            // Update video history with new Cloudinary URL
+            await storage.updateVideoHistoryFields(id, {
+              videoUrl: cloudinaryUrl,
+            });
+            
+            finalVideoUrl = cloudinaryUrl;
+            console.log(`[Merge Temporary] Migration successful for video ${id}`);
+          } catch (uploadError) {
+            console.error(`[Merge Temporary] Failed to migrate video ${id}:`, uploadError);
+            throw new Error(`Failed to migrate video to Cloudinary: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          }
+        }
+
+        videoUrls.push(finalVideoUrl);
       }
 
-      console.log(`[Merge Temporary] All videos verified, starting FFmpeg merge`);
+      console.log(`[Merge Temporary] All videos verified and migrated to Cloudinary, starting FFmpeg merge`);
 
       // Merge videos using FFmpeg with temporary storage
       const { mergeVideosWithFFmpegTemporary } = await import('./videoMergerFFmpeg');

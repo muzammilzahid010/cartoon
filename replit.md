@@ -47,27 +47,29 @@ Preferred communication style: Simple, everyday language.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts. Also cleans up expired temporary videos.
 - **Temporary Video Storage**: New feature for storing merged videos with 24-hour expiry in Replit Object Storage. Uses `createWriteStream` for efficient file uploads. Includes hourly cleanup job to delete expired videos automatically. Ideal for preview generation without consuming permanent storage.
-- **Video Merging**: Three approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API for cloud-based merging of project scenes. (2) **History Selection (Permanent)**: Local FFmpeg processing for user-selected videos (up to 19), uploads to Cloudinary. (3) **History Selection (Temporary)**: Local FFmpeg processing with temporary storage in Object Storage, auto-expires in 24 hours. Downloads videos, merges using FFmpeg concat demuxer, and cleans up temp files. Security enforced via video ID verification and ownership checks.
+- **Video Merging**: Three approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API for cloud-based merging of project scenes. (2) **History Selection (Permanent)**: Local FFmpeg processing for user-selected videos (up to 19), uploads to Cloudinary using unsigned upload preset. (3) **History Selection (Temporary)**: Local FFmpeg processing with temporary storage in Object Storage, auto-expires in 24 hours. Downloads videos, merges using FFmpeg concat demuxer, and cleans up temp files. Security enforced via video ID verification and ownership checks. **Smart Migration**: Videos from Google Cloud Storage are automatically migrated to Cloudinary before merging to ensure permanent availability (GCS URLs expire).
 
 ## External Dependencies
 
 - **AI Service**: Google Gemini AI (gemini-2.5-flash model)
 - **Video Generation**: VEO 3 API
 - **Database**: Neon PostgreSQL (via `@neondatabase/serverless`), Drizzle ORM
-- **Video Storage**: fal.ai API for merged video hosting (auto-generated URL), Cloudinary for individual scene video storage.
+- **Video Storage**: Cloudinary for individual scene and merged video storage (unsigned upload with preset `demo123` on cloud `dy40igzli`). VEO-generated videos initially stored on Google Cloud Storage, automatically migrated to Cloudinary during merge operations. fal.ai API for cartoon project merging.
 - **System Dependency**: FFmpeg (for video processing)
 
-**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `DATABASE_URL`.
+**Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `DATABASE_URL`. Note: Cloudinary API keys no longer required due to unsigned upload preset.
 
-## Recent Updates (November 1, 2025)
+## Recent Updates (November 2, 2025)
 
-### Temporary Video Storage System
-Added comprehensive temporary video storage feature:
-- **Object Storage Integration**: Videos stored in Replit Object Storage with 24-hour expiry metadata
-- **Efficient Uploads**: Fixed critical bug using `createWriteStream` instead of `save` for proper streaming
-- **API Endpoints**: 
-  - `POST /api/merge-videos-temporary`: Merge and store videos temporarily
-  - `GET /api/temp-video-info`: Check video expiry status
-  - `POST /api/cleanup-expired-videos`: Manual cleanup (admin)
-- **Automatic Cleanup**: Hourly job deletes expired videos; daily midnight cleanup handles both video history and temporary videos
-- **Use Cases**: Quick previews, testing merges, cost-effective temporary sharing
+### Video Storage Migration & Cloudinary Integration
+Enhanced video merging with automatic migration from Google Cloud Storage to Cloudinary:
+- **Unsigned Upload**: Switched to Cloudinary unsigned upload preset (`demo123`) - no API keys required
+- **Automatic Migration**: All three merge endpoints (permanent, retry, temporary) now automatically detect Google Cloud Storage videos and migrate them to Cloudinary before merging
+- **Permanent URLs**: Ensures merged videos use permanent Cloudinary URLs instead of expiring Google Cloud Storage URLs
+- **Database Updates**: Video history entries automatically updated with new Cloudinary URLs after migration
+- **Multi-Source Support**: Accepts videos from both Google Cloud Storage (VEO-generated) and Cloudinary (previously merged)
+- **Smart Detection**: Uses URL prefix matching to identify video source and trigger migration when needed
+
+### Previous Updates (November 1, 2025)
+- **Temporary Video Storage System**: Object Storage integration with 24-hour expiry, efficient uploads using `createWriteStream`
+- **Frontend Improvements**: Enhanced button visibility (solid backgrounds), helpful SSE connection loss tip directing users to Video History
