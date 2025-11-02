@@ -664,11 +664,20 @@ export default function Home() {
           )}
           
           {currentStep === 4 && (
-            <VideoGenerationProgress 
-              progress={videoProgress}
-              currentScene={currentVideoScene}
-              totalScenes={scenes.length}
-            />
+            <>
+              <VideoGenerationProgress 
+                progress={videoProgress}
+                currentScene={currentVideoScene}
+                totalScenes={scenes.length}
+              />
+              {videoProgress.some(v => v.status !== 'completed' && v.status !== 'failed') && (
+                <div className="max-w-4xl mx-auto px-4 pb-4">
+                  <p className="text-center text-sm text-muted-foreground">
+                    💡 Tip: If videos seem stuck, check <Link href="/history" className="text-purple-400 hover:text-purple-300 underline">Video History</Link> - they might already be ready!
+                  </p>
+                </div>
+              )}
+            </>
           )}
           
           {currentStep === 5 && (
