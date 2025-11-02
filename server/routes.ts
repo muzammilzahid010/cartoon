@@ -510,6 +510,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk generate endpoint - processes videos in background queue
+  app.post("/api/bulk-generate", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        prompts: z.array(z.string().min(10, "Each prompt must be at least 10 characters")).min(1).max(200),
+        aspectRatio: z.enum(["landscape", "portrait"]),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { prompts, aspectRatio } = validationResult.data;
+      const { addToQueue } = await import('./bulkQueue');
+      
+      console.log(`[Bulk Generate] Starting bulk generation for ${prompts.length} videos`);
+
+      // Create all video history entries immediately
+      const videoIds: string[] = [];
+      const queuedVideos = [];
+      
+      for (let i = 0; i < prompts.length; i++) {
+        const prompt = prompts[i];
+        const video = await storage.addVideoHistory({
+          userId,
+          prompt,
+          aspectRatio,
+          status: "pending",
+          title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
+        });
+        
+        videoIds.push(video.id);
+        queuedVideos.push({
+          videoId: video.id,
+          prompt,
+          aspectRatio,
+          sceneNumber: i + 1,
+          userId,
+        });
+      }
+
+      // Add all videos to the background queue
+      addToQueue(queuedVideos);
+
+      console.log(`[Bulk Generate] Created ${videoIds.length} videos and added to queue`);
+
+      res.json({ 
+        success: true,
+        videoIds,
+        message: `Started generating ${prompts.length} videos. You can leave this page and check progress in Video History.`
+      });
+    } catch (error) {
+      console.error("Error starting bulk generation:", error);
+      res.status(500).json({ 
+        error: "Failed to start bulk generation",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.patch("/api/video-history/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;

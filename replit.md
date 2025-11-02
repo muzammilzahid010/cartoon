@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control. **Per-Scene Token Rotation**: Cartoon story generation now uses a different API token for each scene (Scene 1 → Token A, Scene 2 → Token B, etc.), distributing load across multiple tokens instead of using one token for all scenes.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout. **Smart Token Rotation**: If video doesn't complete in 2 minutes, automatically tries next API token; if still not completed after 4 minutes total, marks as failed.
-- **Bulk Generation**: Optimized for speed with parallel processing and smart token distribution. Videos are created and sent to VEO generation with 20-second delays between requests. **Round-Robin Token Rotation**: Each video uses a different API token (Video 1 → Token 1, Video 2 → Token 2, etc.) to prevent overloading a single token and avoid rate limit errors. Polling starts immediately and runs in background (every 2 seconds) while continuing to send new requests. No "queued" status - videos go straight to "pending" when generation starts. All videos process in parallel for maximum speed.
+- **Bulk Generation**: Backend queue system for maximum reliability. All videos saved to database immediately when user clicks generate. **Backend Queue Worker**: Processes videos in background with 20-second delays between requests. **Round-Robin Token Rotation**: Each video uses a different API token (Video 1 → Token 1, Video 2 → Token 2, etc.) to prevent overloading a single token. **User Can Leave**: Videos continue generating even if user closes browser or navigates away - check progress in Video History. Background polling with 4-minute timeout and automatic token rotation on failures.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting. Cleanup runs every 2 minutes via background job.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts. Also cleans up expired temporary videos.
 - **Temporary Video Storage**: New feature for storing merged videos with 24-hour expiry in Replit Object Storage. Uses `createWriteStream` for efficient file uploads. Includes hourly cleanup job to delete expired videos automatically. Ideal for preview generation without consuming permanent storage.
@@ -68,16 +68,17 @@ All VEO-generated videos now automatically upload to Cloudinary for permanent st
 - **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
 - **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
 
-### Bulk Generation with Round-Robin Token Rotation
-Redesigned bulk video generation for maximum speed, reliability, and proper load distribution:
-- **Round-Robin Token Distribution**: Each video uses a different API token in sequence (Video 1 → Token 1, Video 2 → Token 2, Video 3 → Token 3, Video 4 → Token 1, etc.) to prevent overloading any single token
-- **No Single-Token Errors**: Distributes load evenly across all active tokens, eliminating rate limit errors from sending multiple requests to one token
-- **Smart Token Selection**: Uses `getTokenByIndex()` with modulo arithmetic for consistent round-robin distribution
-- **No Queued Status**: Videos go straight to "pending" when generation starts - no waiting in queue
-- **Parallel Processing**: All videos process simultaneously after being sent to VEO
-- **20-Second Request Delays**: Sends VEO generation requests every 20 seconds to avoid rate limits
-- **Background Polling**: Status checks run in background (every 2 seconds) while sending new requests
-- **Continuous Updates**: UI updates in real-time as videos complete, even while sending new requests
+### Backend Queue System for Bulk Generation
+Implemented backend queue worker that continues processing even after user leaves the page:
+- **Backend Queue Worker**: New `bulkQueue.ts` module processes videos in background with dedicated worker
+- **Persistent Processing**: Videos continue generating even if user closes browser, reloads page, or navigates away
+- **Single API Call**: Frontend calls `/api/bulk-generate` once with all prompts, returns immediately
+- **Database-First**: All videos saved to database before processing starts
+- **Round-Robin Token Distribution**: Each video automatically assigned to different API token (Video 1 → Token 1, Video 2 → Token 2, etc.)
+- **20-Second Delays**: Queue worker sends VEO requests every 20 seconds to avoid rate limits
+- **Background Polling**: Each video has its own 4-minute timeout with automatic token retry after 2 minutes
+- **Auto-Upload to Cloudinary**: Videos uploaded to permanent storage immediately upon completion
+- **Check Anywhere**: Users can monitor progress in Video History page - no need to stay on bulk generator page
 
 ### Fixed Video Merge Cloudinary Upload
 Fixed critical bug in FFmpeg video merge that prevented Cloudinary uploads:

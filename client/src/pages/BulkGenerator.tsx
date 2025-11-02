@@ -189,15 +189,55 @@ export default function BulkGenerator() {
     setGenerationProgress(initialProgress);
     setIsGenerating(true);
 
-    const historyEntryIds: (string | null)[] = [];
-    historyEntryIdsRef.current = historyEntryIds;
+    // Call the bulk generate endpoint
+    try {
+      const response = await fetch('/api/bulk-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          prompts: promptLines,
+          aspectRatio,
+        }),
+      });
 
-    let startedCount = 0;
-    let failedToStartCount = 0;
-    
-    // Start polling immediately for status updates (runs in background)
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Failed to start generation",
+          description: error.message || "Please try again",
+          variant: "destructive",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      const result = await response.json();
+      const videoIds = result.videoIds;
+      historyEntryIdsRef.current = videoIds;
+
+      toast({
+        title: "Generation started!",
+        description: `${promptLines.length} videos are now generating in the background. You can leave this page and check progress in Video History.`,
+      });
+
+      console.log(`[Bulk Generate] Started ${videoIds.length} videos. Processing in background.`);
+
+    } catch (error: any) {
+      console.error('Error starting bulk generation:', error);
+      toast({
+        title: "Failed to start generation",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+      setIsGenerating(false);
+      return;
+    }
+
+    // Start polling for status updates (runs in background)
+    const historyEntryIds = historyEntryIdsRef.current;
     let pollingAttempts = 0;
-    const maxPollingAttempts = 300; // Poll for up to 10 minutes (300 * 2 sec)
+    const maxPollingAttempts = 600; // Poll for up to 20 minutes (600 * 2 sec)
     
     pollingIntervalRef.current = setInterval(async () => {
       pollingAttempts++;
@@ -254,116 +294,6 @@ export default function BulkGenerator() {
         console.error('Error polling history:', error);
       }
     }, 2000);
-    
-    // Start video generation with 20-second delay between each
-    // Polling runs in background while we send requests
-    for (let i = 0; i < promptLines.length; i++) {
-      const currentPrompt = promptLines[i];
-
-      // Update status to processing in UI
-      setGenerationProgress(prev => 
-        prev.map((item, idx) => 
-          idx === i ? { ...item, status: "processing" } : item
-        )
-      );
-
-      try {
-        // Create history entry and start generation immediately
-        const response = await fetch('/api/video-history', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            prompt: currentPrompt,
-            aspectRatio,
-            status: 'pending',
-            title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
-          }),
-        });
-
-        if (!response.ok) {
-          console.error(`Failed to create history entry for video ${i + 1}`);
-          historyEntryIds.push(null);
-          setGenerationProgress(prev => 
-            prev.map((item, idx) => 
-              idx === i ? { ...item, status: "failed", error: "Failed to create history entry" } : item
-            )
-          );
-          failedToStartCount++;
-          continue;
-        }
-
-        const historyData = await response.json();
-        const historyEntryId = historyData.video.id;
-        historyEntryIds.push(historyEntryId);
-        console.log(`Created history entry for video ${i + 1} with ID: ${historyEntryId}`);
-
-        // Start video generation
-        const genResponse = await fetch('/api/regenerate-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            videoId: historyEntryId,
-            prompt: currentPrompt,
-            aspectRatio: aspectRatio,
-            sceneNumber: i + 1,
-          }),
-        });
-
-        const result = await genResponse.json();
-
-        if (!genResponse.ok) {
-          console.error(`Failed to start video ${i + 1}:`, result.error);
-          setGenerationProgress(prev => 
-            prev.map((item, idx) => 
-              idx === i ? { ...item, status: "failed", error: result.error } : item
-            )
-          );
-          failedToStartCount++;
-        } else {
-          console.log(`Started video ${i + 1} generation with token: ${result.tokenLabel || 'N/A'} - will complete in background`);
-          // Update progress with token label information
-          setGenerationProgress(prev => 
-            prev.map((item, idx) => 
-              idx === i ? { ...item, tokenLabel: result.tokenLabel } : item
-            )
-          );
-          startedCount++;
-        }
-
-      } catch (error: any) {
-        console.error(`Error starting video ${i + 1}:`, error);
-        historyEntryIds.push(null);
-        setGenerationProgress(prev => 
-          prev.map((item, idx) => 
-            idx === i ? { ...item, status: "failed", error: error.message } : item
-          )
-        );
-        failedToStartCount++;
-      }
-
-      // Add 20-second delay before starting next video (except for last one)
-      if (i < promptLines.length - 1) {
-        console.log(`Waiting 20 seconds before starting video ${i + 2}...`);
-        await new Promise(resolve => setTimeout(resolve, 20000));
-      }
-    }
-
-    // If no videos started successfully, stop polling
-    if (startedCount === 0) {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-      setIsGenerating(false);
-    }
-    
-    // Show completion toast with summary
-    toast({
-      title: "Bulk generation started",
-      description: `${startedCount} video${startedCount !== 1 ? 's' : ''} are being generated${failedToStartCount > 0 ? `, ${failedToStartCount} failed to start` : ''}. Progress will update automatically.`,
-    });
   };
 
   const promptCount = prompts.split('\n').filter(line => line.trim().length > 0).length;
