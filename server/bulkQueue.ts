@@ -13,6 +13,8 @@ interface QueuedVideo {
 const bulkQueue: QueuedVideo[] = [];
 let isProcessing = false;
 const DELAY_BETWEEN_REQUESTS_MS = 20000; // 20 seconds
+const MAX_RETRIES = 2; // Max retries per video
+const RETRY_DELAY_MS = 10000; // 10 seconds between retries
 
 /**
  * Add videos to the bulk generation queue
@@ -97,16 +99,48 @@ async function processQueue() {
         }]
       };
 
-      const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
+      // Add timeout to fetch request (30 seconds)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      
+      let response;
+      let data;
+      
+      try {
+        response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeout);
+        data = await response.json();
+      } catch (fetchError: any) {
+        clearTimeout(timeout);
+        if (fetchError.name === 'AbortError') {
+          const errorMessage = `Request timeout after 30 seconds - VEO API not responding`;
+          console.error('[Bulk Queue] Request timeout:', fetchError);
+          await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+        } else {
+          const errorMessage = `Network error: ${fetchError.message}`;
+          console.error('[Bulk Queue] Network error:', fetchError);
+          await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+        }
+        
+        if (rotationToken) {
+          storage.recordTokenError(rotationToken.id);
+        }
+        
+        // Wait before processing next video
+        if (bulkQueue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
+        }
+        continue;
+      }
 
       if (!response.ok) {
         const errorMessage = `VEO API error (${response.status}): ${JSON.stringify(data).substring(0, 200)}`;
