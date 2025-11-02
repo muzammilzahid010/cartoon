@@ -34,21 +34,21 @@ export default function ScenesDisplay({ scenes, onStartNew, onRegenerate, isRege
         
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={onStartNew}
             disabled={isRegenerating}
             data-testid="button-start-new"
-            className="w-full sm:w-auto text-sm sm:text-base"
+            className="w-full sm:w-auto text-sm sm:text-base bg-slate-700 hover:bg-slate-600 text-white border-0"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
             Start New
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={onRegenerate}
             disabled={isRegenerating}
             data-testid="button-regenerate-scenes"
-            className="w-full sm:w-auto text-sm sm:text-base"
+            className="w-full sm:w-auto text-sm sm:text-base bg-slate-700 hover:bg-slate-600 text-white border-0"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
             Regenerate Scenes
@@ -57,7 +57,7 @@ export default function ScenesDisplay({ scenes, onStartNew, onRegenerate, isRege
             onClick={handleExport}
             disabled={isRegenerating}
             data-testid="button-export"
-            className="w-full sm:w-auto text-sm sm:text-base"
+            className="w-full sm:w-auto text-sm sm:text-base bg-purple-600 hover:bg-purple-700 text-white border-0"
           >
             <Download className="w-4 h-4 mr-2" />
             Export JSON
