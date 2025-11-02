@@ -999,12 +999,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 completed = true;
                 
                 if (statusResult.videoUrl) {
-                  // Update history with completed video
-                  await storage.updateVideoHistoryFields(videoId, {
-                    videoUrl: statusResult.videoUrl,
-                    status: 'completed',
-                  });
-                  console.log(`[VEO Regenerate] Video ${videoId} completed successfully${hasRetriedWithNewToken ? ' (after token retry)' : ''}`);
+                  // Upload to Cloudinary before saving URL
+                  try {
+                    console.log(`[VEO Regenerate] Uploading video ${videoId} to Cloudinary...`);
+                    const cloudinaryUrl = await uploadVideoToCloudinary(statusResult.videoUrl);
+                    console.log(`[VEO Regenerate] Video ${videoId} uploaded to Cloudinary: ${cloudinaryUrl}`);
+                    
+                    // Update history with Cloudinary URL
+                    await storage.updateVideoHistoryFields(videoId, {
+                      videoUrl: cloudinaryUrl,
+                      status: 'completed',
+                    });
+                    console.log(`[VEO Regenerate] Video ${videoId} completed successfully${hasRetriedWithNewToken ? ' (after token retry)' : ''}`);
+                  } catch (uploadError) {
+                    console.error(`[VEO Regenerate] Failed to upload video ${videoId} to Cloudinary:`, uploadError);
+                    // Fall back to original URL if Cloudinary upload fails
+                    await storage.updateVideoHistoryFields(videoId, {
+                      videoUrl: statusResult.videoUrl,
+                      status: 'completed',
+                    });
+                    console.log(`[VEO Regenerate] Video ${videoId} saved with original URL (Cloudinary upload failed)`);
+                  }
                 }
               } else if (statusResult.status === 'FAILED' || 
                          statusResult.status === 'MEDIA_GENERATION_STATUS_FAILED') {
