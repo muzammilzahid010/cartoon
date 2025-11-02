@@ -49,27 +49,25 @@ async function processQueue() {
     try {
       console.log(`[Bulk Queue] Processing video ${video.sceneNumber} (ID: ${video.videoId}). Remaining: ${bulkQueue.length}`);
       
-      // Get API token using round-robin
+      // Get API token using round-robin rotation (wraps around for any number of videos)
       let apiKey: string | undefined;
       let rotationToken: ApiToken | undefined;
       
-      if (video.sceneNumber > 0) {
-        rotationToken = await storage.getTokenByIndex(video.sceneNumber - 1);
-        
-        if (rotationToken) {
-          apiKey = rotationToken.token;
-          console.log(`[Bulk Queue] Using token ${rotationToken.label} for video ${video.sceneNumber}`);
-          await storage.updateTokenUsage(rotationToken.id);
-        }
+      rotationToken = await storage.getNextRotationToken();
+      
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Bulk Queue] Using token ${rotationToken.label} (ID: ${rotationToken.id}) for video ${video.sceneNumber}`);
+        await storage.updateTokenUsage(rotationToken.id);
       }
       
       if (!apiKey) {
         apiKey = process.env.VEO3_API_KEY;
-        console.log('[Bulk Queue] Using environment variable VEO3_API_KEY');
+        console.log('[Bulk Queue] Fallback: Using environment variable VEO3_API_KEY');
       }
 
       if (!apiKey) {
-        console.error('[Bulk Queue] No API key available, marking video as failed');
+        console.error('[Bulk Queue] ❌ CRITICAL: No API key available for video ${video.sceneNumber}, marking as failed');
         await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed');
         continue;
       }

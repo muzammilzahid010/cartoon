@@ -68,13 +68,14 @@ All VEO-generated videos now automatically upload to Cloudinary for permanent st
 - **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
 - **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
 
-### Backend Queue System for Bulk Generation
+### Backend Queue System for Bulk Generation (FIXED)
 Implemented backend queue worker that continues processing even after user leaves the page:
 - **Backend Queue Worker**: New `bulkQueue.ts` module processes videos in background with dedicated worker
 - **Persistent Processing**: Videos continue generating even if user closes browser, reloads page, or navigates away
 - **Single API Call**: Frontend calls `/api/bulk-generate` once with all prompts, returns immediately
 - **Database-First**: All videos saved to database before processing starts
-- **Round-Robin Token Distribution**: Each video automatically assigned to different API token (Video 1 → Token 1, Video 2 → Token 2, etc.)
+- **True Round-Robin Token Rotation**: Uses `getNextRotationToken()` which wraps around for unlimited videos (Video 1 → Token 1, Video 8 → Token 1, Video 115 → Token 3, etc.)
+- **Fixed Critical Bug**: Previously used `getTokenByIndex(sceneNumber - 1)` which failed after exhausting tokens (only first 7-9 videos got tokens). Now uses proper rotation that wraps around automatically.
 - **20-Second Delays**: Queue worker sends VEO requests every 20 seconds to avoid rate limits
 - **Background Polling**: Each video has its own 4-minute timeout with automatic token retry after 2 minutes
 - **Auto-Upload to Cloudinary**: Videos uploaded to permanent storage immediately upon completion
