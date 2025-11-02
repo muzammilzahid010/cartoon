@@ -808,15 +808,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get API key from token rotation system or fallback to environment variable
+      // Get API key using round-robin rotation based on scene number
       let apiKey: string | undefined;
-      rotationToken = await storage.getNextRotationToken();
       
-      if (rotationToken) {
-        apiKey = rotationToken.token;
-        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
-        await storage.updateTokenUsage(rotationToken.id);
+      if (sceneNumber !== undefined && sceneNumber > 0) {
+        // Use round-robin token selection based on scene number (0-indexed)
+        rotationToken = await storage.getTokenByIndex(sceneNumber - 1);
+        
+        if (rotationToken) {
+          apiKey = rotationToken.token;
+          console.log(`[Token Rotation] Using token ${rotationToken.label} for video ${sceneNumber} (round-robin)`);
+          await storage.updateTokenUsage(rotationToken.id);
+        }
       } else {
+        // For non-bulk generations, use the regular rotation
+        rotationToken = await storage.getNextRotationToken();
+        
+        if (rotationToken) {
+          apiKey = rotationToken.token;
+          console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+          await storage.updateTokenUsage(rotationToken.id);
+        }
+      }
+      
+      // Fallback to environment variable if no token available
+      if (!apiKey) {
         apiKey = process.env.VEO3_API_KEY;
         console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
       }

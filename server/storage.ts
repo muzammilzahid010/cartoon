@@ -50,6 +50,7 @@ export interface IStorage {
   deleteApiToken(tokenId: string): Promise<void>;
   toggleApiTokenStatus(tokenId: string, isActive: boolean): Promise<ApiToken | undefined>;
   getNextRotationToken(): Promise<ApiToken | undefined>;
+  getTokenByIndex(index: number): Promise<ApiToken | undefined>;
   updateTokenUsage(tokenId: string): Promise<void>;
   replaceAllTokens(tokens: string[]): Promise<ApiToken[]>;
   recordTokenError(tokenId: string): void;
@@ -226,6 +227,34 @@ export class DatabaseStorage implements IStorage {
     
     console.log('[Token Rotation] All active tokens are in cooldown or near error threshold');
     return undefined;
+  }
+
+  async getTokenByIndex(index: number): Promise<ApiToken | undefined> {
+    // Get all active tokens in consistent order (by creation time)
+    const tokens = await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.isActive, true))
+      .orderBy(apiTokens.createdAt);
+    
+    if (tokens.length === 0) {
+      console.log('[Token Rotation] No active tokens available');
+      return undefined;
+    }
+    
+    // Filter out tokens in cooldown
+    const availableTokens = tokens.filter(token => !this.isTokenInCooldown(token.id));
+    
+    if (availableTokens.length === 0) {
+      console.log('[Token Rotation] All active tokens are in cooldown');
+      return undefined;
+    }
+    
+    // Round-robin: select token by index modulo number of available tokens
+    const selectedToken = availableTokens[index % availableTokens.length];
+    console.log(`[Token Rotation] Selected token ${selectedToken.label} (index ${index} % ${availableTokens.length} tokens = ${index % availableTokens.length})`);
+    
+    return selectedToken;
   }
 
   async updateTokenUsage(tokenId: string): Promise<void> {
