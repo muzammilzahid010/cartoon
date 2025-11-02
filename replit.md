@@ -77,8 +77,8 @@ Fixed issue where videos stuck in "queued" status would wait indefinitely:
 
 ### Fixed Video Merge Cloudinary Upload
 Fixed critical bug in FFmpeg video merge that prevented Cloudinary uploads:
-- **Root Cause**: Missing `Content-Type` headers with multipart boundary when using `form-data` package
-- **Fix**: Added `formData.getHeaders()` to upload request to include proper multipart headers
+- **Root Cause**: Using npm `form-data` package which doesn't work correctly with native fetch API
+- **Fix**: Switched to native web FormData API with Blob for video upload
 - **Impact**: Video merge now successfully uploads to Cloudinary with unsigned upload preset
 
 ### Video Storage Migration & Cloudinary Integration

@@ -8,7 +8,6 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { ObjectStorageService } from './objectStorage';
-import FormData from 'form-data';
 
 const execAsync = promisify(exec);
 const objectStorageService = new ObjectStorageService();
@@ -84,17 +83,17 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
     console.log(`[FFmpeg Merger] Uploading merged video to Cloudinary...`);
     
     const videoBuffer = await readFile(outputFile);
+    const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
+    
     const formData = new FormData();
-    formData.append('file', videoBuffer, {
-      filename: `merged-${uniqueId}.mp4`,
-      contentType: 'video/mp4'
-    });
+    formData.append('file', videoBlob, `merged-${uniqueId}.mp4`);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    
+    console.log(`[FFmpeg Merger] FormData created with upload_preset: ${CLOUDINARY_UPLOAD_PRESET}`);
     
     const uploadResponse = await fetch(CLOUDINARY_UPLOAD_URL, {
       method: 'POST',
-      headers: formData.getHeaders(),
-      body: formData as any,
+      body: formData,
     });
 
     if (!uploadResponse.ok) {
