@@ -1493,8 +1493,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Additional security: Verify URL is from Cloudinary
-        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+        // Additional security: Verify URL is from trusted sources (Cloudinary or Google Cloud Storage)
+        const isCloudinary = video.videoUrl.startsWith('https://res.cloudinary.com/');
+        const isGoogleStorage = video.videoUrl.startsWith('https://storage.googleapis.com/');
+        if (!isCloudinary && !isGoogleStorage) {
           return res.status(400).json({ 
             error: "Invalid video URL",
             message: `Video ${videoId} has an invalid URL`
@@ -1606,8 +1608,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Verify URL is from Cloudinary
-        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+        // Verify URL is from trusted sources (Cloudinary or Google Cloud Storage)
+        const isCloudinary = video.videoUrl.startsWith('https://res.cloudinary.com/');
+        const isGoogleStorage = video.videoUrl.startsWith('https://storage.googleapis.com/');
+        if (!isCloudinary && !isGoogleStorage) {
           return res.status(400).json({ 
             error: "Invalid video URL",
             message: `Video ${id} has an invalid URL`
@@ -1697,7 +1701,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        if (!video.videoUrl.startsWith('https://res.cloudinary.com/')) {
+        // Verify URL is from trusted sources (Cloudinary or Google Cloud Storage)
+        const isCloudinary = video.videoUrl.startsWith('https://res.cloudinary.com/');
+        const isGoogleStorage = video.videoUrl.startsWith('https://storage.googleapis.com/');
+        if (!isCloudinary && !isGoogleStorage) {
           return res.status(400).json({ 
             error: "Invalid video URL",
             message: `Video ${id} has an invalid URL`
