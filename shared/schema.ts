@@ -145,6 +145,7 @@ export const videoHistory = pgTable("video_history", {
   title: text("title"),
   tokenUsed: varchar("token_used").references(() => apiTokens.id),
   metadata: text("metadata"), // JSON string for merge info: { mergedVideoIds: string[] }
+  errorMessage: text("error_message"), // Store error details for failed videos
 });
 
 export const insertVideoHistorySchema = createInsertSchema(videoHistory).omit({

@@ -19,9 +19,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw, TrendingUp, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw, TrendingUp, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 
 const createUserSchema = z.object({
@@ -94,6 +96,7 @@ export default function Admin() {
   const { toast } = useToast();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingTokenUserId, setEditingTokenUserId] = useState<string | null>(null);
+  const [viewingTokenErrors, setViewingTokenErrors] = useState<string | null>(null);
 
   const { data: session, isLoading: isLoadingSession } = useQuery<{
     authenticated: boolean;
@@ -129,6 +132,7 @@ export default function Admin() {
     createdAt: string;
     title: string | null;
     tokenUsed: string | null;
+    errorMessage: string | null;
   }> }>({
     queryKey: ["/api/admin/video-history"],
     enabled: isAdmin === true,
@@ -625,10 +629,16 @@ export default function Admin() {
                             </span>
                           </TableCell>
                           <TableCell className="text-gray-700 dark:text-gray-300">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm rounded">
+                            <button
+                              onClick={() => stat.failed > 0 && setViewingTokenErrors(stat.tokenId)}
+                              className={`inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm rounded ${
+                                stat.failed > 0 ? 'cursor-pointer hover:bg-red-200 dark:hover:bg-red-900/30' : ''
+                              }`}
+                              disabled={stat.failed === 0}
+                            >
                               <XCircle className="w-3 h-3" />
                               {stat.failed}
-                            </span>
+                            </button>
                           </TableCell>
                           <TableCell className="text-gray-700 dark:text-gray-300">
                             <span className={`px-2 py-1 text-sm rounded ${
@@ -650,6 +660,71 @@ export default function Admin() {
             </CardContent>
           </Card>
         )}
+
+        {/* Error Details Dialog */}
+        <Dialog open={!!viewingTokenErrors} onOpenChange={(open) => !open && setViewingTokenErrors(null)}>
+          <DialogContent className="max-w-4xl dark:bg-gray-800 dark:border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                Failed Video Details
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400">
+                Error messages for failed video generations using {tokensData?.tokens.find(t => t.id === viewingTokenErrors)?.label || 'this token'}
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[500px] pr-4">
+              <div className="space-y-3">
+                {allVideoHistory?.videos
+                  .filter(v => v.tokenUsed === viewingTokenErrors && v.status === 'failed')
+                  .map((video) => (
+                    <div key={video.id} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {video.title || 'Untitled Video'}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              ID: {video.id}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              Created: {new Date(video.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge variant="destructive">Failed</Badge>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Prompt:</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                            {video.prompt}
+                          </p>
+                        </div>
+                        {video.errorMessage && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Error Message:
+                            </p>
+                            <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800">
+                              {video.errorMessage}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                {allVideoHistory?.videos
+                  .filter(v => v.tokenUsed === viewingTokenErrors && v.status === 'failed')
+                  .length === 0 && (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No failed videos found for this token
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="shadow-xl dark:bg-gray-800 dark:border-gray-700">

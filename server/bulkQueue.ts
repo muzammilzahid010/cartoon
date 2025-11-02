@@ -67,8 +67,9 @@ async function processQueue() {
       }
 
       if (!apiKey) {
-        console.error('[Bulk Queue] ❌ CRITICAL: No API key available for video ${video.sceneNumber}, marking as failed');
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed');
+        const errorMessage = `No API key available for video generation (scene ${video.sceneNumber})`;
+        console.error(`[Bulk Queue] ❌ CRITICAL: ${errorMessage}`);
+        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
         continue;
       }
 
@@ -108,8 +109,9 @@ async function processQueue() {
       const data = await response.json();
 
       if (!response.ok) {
+        const errorMessage = `VEO API error (${response.status}): ${JSON.stringify(data).substring(0, 200)}`;
         console.error('[Bulk Queue] VEO API error:', data);
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed');
+        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
         
         if (rotationToken) {
           storage.recordTokenError(rotationToken.id);
@@ -123,8 +125,9 @@ async function processQueue() {
       }
 
       if (!data.operations || data.operations.length === 0) {
+        const errorMessage = 'No operations returned from VEO API - possible API issue';
         console.error('[Bulk Queue] No operations returned from VEO API');
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed');
+        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
         
         if (rotationToken) {
           storage.recordTokenError(rotationToken.id);
@@ -155,8 +158,9 @@ async function processQueue() {
       startBackgroundPolling(video.videoId, video.userId, operationName, sceneId, apiKey, rotationToken);
 
     } catch (error) {
+      const errorMessage = `Error processing video: ${error instanceof Error ? error.message : String(error)}`;
       console.error(`[Bulk Queue] Error processing video ${video.sceneNumber}:`, error);
-      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed');
+      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
     }
 
     // Wait 20 seconds before processing next video
@@ -290,8 +294,9 @@ async function startBackgroundPolling(
               console.log(`[Bulk Queue Polling] Video ${videoId} completed successfully`);
               completed = true;
             } else if (statusData.error) {
+              const errorMessage = `VEO generation failed: ${statusData.error.message || JSON.stringify(statusData.error).substring(0, 200)}`;
               console.error(`[Bulk Queue Polling] Video ${videoId} failed:`, statusData.error);
-              await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+              await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
               
               if (currentRotationToken) {
                 storage.recordTokenError(currentRotationToken.id);
@@ -306,12 +311,14 @@ async function startBackgroundPolling(
 
       // If not completed after max attempts, mark as failed
       if (!completed) {
+        const errorMessage = `Video generation timed out after ${maxAttempts * 2} seconds (${maxAttempts} attempts)`;
         console.log(`[Bulk Queue Polling] Video ${videoId} timed out after ${maxAttempts} attempts`);
-        await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+        await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
       }
     } catch (error) {
+      const errorMessage = `Fatal error during video generation: ${error instanceof Error ? error.message : String(error)}`;
       console.error(`[Bulk Queue Polling] Fatal error polling video ${videoId}:`, error);
-      await storage.updateVideoHistoryStatus(videoId, userId, 'failed');
+      await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
     }
   })();
 }
