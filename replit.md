@@ -44,7 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control. **Per-Scene Token Rotation**: Cartoon story generation now uses a different API token for each scene (Scene 1 → Token A, Scene 2 → Token B, etc.), distributing load across multiple tokens instead of using one token for all scenes.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout. **Smart Token Rotation**: If video doesn't complete in 2 minutes, automatically tries next API token; if still not completed after 4 minutes total, marks as failed.
 - **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
-- **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting.
+- **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes. Videos stuck in queued status are automatically marked as failed after 10 minutes. Cleanup runs every 2 minutes to catch stuck videos quickly.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts. Also cleans up expired temporary videos.
 - **Temporary Video Storage**: New feature for storing merged videos with 24-hour expiry in Replit Object Storage. Uses `createWriteStream` for efficient file uploads. Includes hourly cleanup job to delete expired videos automatically. Ideal for preview generation without consuming permanent storage.
 - **Video Merging**: Three approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API for cloud-based merging of project scenes. (2) **History Selection (Permanent)**: Local FFmpeg processing for user-selected videos (up to 19), uploads to Cloudinary using unsigned upload preset. (3) **History Selection (Temporary)**: Local FFmpeg processing with temporary storage in Object Storage, auto-expires in 24 hours. Downloads videos, merges using FFmpeg concat demuxer, and cleans up temp files. Security enforced via video ID verification and ownership checks. **Smart Migration**: Videos from Google Cloud Storage are automatically migrated to Cloudinary before merging to ensure permanent availability (GCS URLs expire).
@@ -60,6 +60,20 @@ Preferred communication style: Simple, everyday language.
 **Environment Variables**: `GEMINI_API_KEY`, `VEO3_API_KEY`, `VEO3_PROJECT_ID`, `FAL_API_KEY`, `DATABASE_URL`. Note: Cloudinary API keys no longer required due to unsigned upload preset.
 
 ## Recent Updates (November 2, 2025)
+
+### Automatic Cloudinary Upload for All Videos
+All VEO-generated videos now automatically upload to Cloudinary for permanent storage:
+- **Universal Upload**: ALL videos (VEO single, cartoon scenes, bulk, regenerated) now upload to Cloudinary immediately after VEO generation
+- **Permanent Storage**: Videos stored on Cloudinary never expire, unlike temporary Google Cloud Storage URLs
+- **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
+- **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
+
+### Automatic Timeout for Stuck Queued Videos
+Fixed issue where videos stuck in "queued" status would wait indefinitely:
+- **10-Minute Timeout**: Videos in queued status for more than 10 minutes are automatically marked as failed
+- **Background Job**: Cleanup runs every 2 minutes to catch stuck videos quickly
+- **Startup Cleanup**: Runs immediately on server startup to clear existing stuck videos
+- **User Impact**: No more indefinitely waiting videos - clear failure status within 10 minutes
 
 ### Video Storage Migration & Cloudinary Integration
 Enhanced video merging with automatic migration from Google Cloud Storage to Cloudinary:
