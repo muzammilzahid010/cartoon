@@ -189,50 +189,76 @@ export default function BulkGenerator() {
     setGenerationProgress(initialProgress);
     setIsGenerating(true);
 
-    // STEP 1: Save ALL videos to history IMMEDIATELY (with "queued" status)
-    // This ensures all videos appear in history even if user reloads the page
     const historyEntryIds: (string | null)[] = [];
+    historyEntryIdsRef.current = historyEntryIds;
+
+    let startedCount = 0;
+    let failedToStartCount = 0;
     
-    for (let i = 0; i < promptLines.length; i++) {
-      const currentPrompt = promptLines[i];
+    // Start polling immediately for status updates (runs in background)
+    let pollingAttempts = 0;
+    const maxPollingAttempts = 300; // Poll for up to 10 minutes (300 * 2 sec)
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      pollingAttempts++;
+      
       try {
+        // Fetch latest history to check status
         const historyResponse = await fetch('/api/video-history', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            prompt: currentPrompt,
-            aspectRatio,
-            status: 'queued',
-            title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
-          }),
         });
         
         if (historyResponse.ok) {
           const historyData = await historyResponse.json();
-          historyEntryIds.push(historyData.video.id);
-          console.log(`Saved video ${i + 1} to history with ID: ${historyData.video.id}`);
-        } else {
-          historyEntryIds.push(null);
-          console.error(`Failed to save video ${i + 1} to history`);
+          
+          // Update progress for each video
+          for (let i = 0; i < historyEntryIds.length; i++) {
+            const entryId = historyEntryIds[i];
+            if (!entryId) continue;
+            
+            const videoInHistory = historyData.videos.find((v: any) => v.id === entryId);
+            if (videoInHistory) {
+              setGenerationProgress(prev => 
+                prev.map((item, idx) => {
+                  if (idx !== i) return item;
+                  
+                  if (videoInHistory.status === 'completed') {
+                    return { ...item, status: "completed", videoUrl: videoInHistory.videoUrl };
+                  } else if (videoInHistory.status === 'failed') {
+                    return { ...item, status: "failed", error: "Generation failed" };
+                  } else if (videoInHistory.status === 'pending') {
+                    return { ...item, status: "processing" };
+                  }
+                  return item;
+                })
+              );
+            }
+          }
+          
+          // Check if all are done
+          const allDone = historyEntryIds.length > 0 && historyEntryIds.every(entryId => {
+            if (!entryId) return true;
+            const video = historyData.videos.find((v: any) => v.id === entryId);
+            return video && (video.status === 'completed' || video.status === 'failed');
+          });
+          
+          if (allDone || pollingAttempts >= maxPollingAttempts) {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            setIsGenerating(false);
+          }
         }
-      } catch (historyError) {
-        historyEntryIds.push(null);
-        console.error('Failed to save to history:', historyError);
+      } catch (error) {
+        console.error('Error polling history:', error);
       }
-    }
-
-    // Save history IDs to ref for persistence
-    historyEntryIdsRef.current = historyEntryIds;
-
-    // STEP 2: Start video generation with 20-second delay between each
-    // Videos will process in parallel/background
-    let startedCount = 0;
-    let failedToStartCount = 0;
+    }, 2000);
     
+    // Start video generation with 20-second delay between each
+    // Polling runs in background while we send requests
     for (let i = 0; i < promptLines.length; i++) {
       const currentPrompt = promptLines[i];
-      const historyEntryId = historyEntryIds[i];
 
       // Update status to processing in UI
       setGenerationProgress(prev => 
@@ -241,21 +267,39 @@ export default function BulkGenerator() {
         )
       );
 
-      // Skip if history entry wasn't created
-      if (!historyEntryId) {
-        console.error(`Skipping video ${i + 1} - no history entry ID`);
-        setGenerationProgress(prev => 
-          prev.map((item, idx) => 
-            idx === i ? { ...item, status: "failed", error: "Failed to create history entry" } : item
-          )
-        );
-        failedToStartCount++;
-        continue;
-      }
-
       try {
-        // Use the regenerate endpoint which has background polling
-        const response = await fetch('/api/regenerate-video', {
+        // Create history entry and start generation immediately
+        const response = await fetch('/api/video-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            prompt: currentPrompt,
+            aspectRatio,
+            status: 'pending',
+            title: `Bulk VEO ${aspectRatio} video ${i + 1}`,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to create history entry for video ${i + 1}`);
+          historyEntryIds.push(null);
+          setGenerationProgress(prev => 
+            prev.map((item, idx) => 
+              idx === i ? { ...item, status: "failed", error: "Failed to create history entry" } : item
+            )
+          );
+          failedToStartCount++;
+          continue;
+        }
+
+        const historyData = await response.json();
+        const historyEntryId = historyData.video.id;
+        historyEntryIds.push(historyEntryId);
+        console.log(`Created history entry for video ${i + 1} with ID: ${historyEntryId}`);
+
+        // Start video generation
+        const genResponse = await fetch('/api/regenerate-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -267,9 +311,9 @@ export default function BulkGenerator() {
           }),
         });
 
-        const result = await response.json();
+        const result = await genResponse.json();
 
-        if (!response.ok) {
+        if (!genResponse.ok) {
           console.error(`Failed to start video ${i + 1}:`, result.error);
           setGenerationProgress(prev => 
             prev.map((item, idx) => 
@@ -290,6 +334,7 @@ export default function BulkGenerator() {
 
       } catch (error: any) {
         console.error(`Error starting video ${i + 1}:`, error);
+        historyEntryIds.push(null);
         setGenerationProgress(prev => 
           prev.map((item, idx) => 
             idx === i ? { ...item, status: "failed", error: error.message } : item
@@ -305,66 +350,12 @@ export default function BulkGenerator() {
       }
     }
 
-    // STEP 3: Poll for completion status to update UI
-    // This is just for UI feedback - backend already handles actual completion
-    if (startedCount > 0) {
-      let pollingAttempts = 0;
-      const maxPollingAttempts = 150; // Poll for up to 5 minutes (150 * 2 sec)
-      
-      pollingIntervalRef.current = setInterval(async () => {
-        pollingAttempts++;
-        
-        try {
-          // Fetch latest history to check status
-          const historyResponse = await fetch('/api/video-history', {
-            credentials: 'include',
-          });
-          
-          if (historyResponse.ok) {
-            const historyData = await historyResponse.json();
-            
-            // Update progress for each video
-            for (let i = 0; i < historyEntryIds.length; i++) {
-              const entryId = historyEntryIds[i];
-              if (!entryId) continue;
-              
-              const videoInHistory = historyData.videos.find((v: any) => v.id === entryId);
-              if (videoInHistory) {
-                setGenerationProgress(prev => 
-                  prev.map((item, idx) => {
-                    if (idx !== i) return item;
-                    
-                    if (videoInHistory.status === 'completed') {
-                      return { ...item, status: "completed", videoUrl: videoInHistory.videoUrl };
-                    } else if (videoInHistory.status === 'failed') {
-                      return { ...item, status: "failed", error: "Generation failed" };
-                    }
-                    return item;
-                  })
-                );
-              }
-            }
-            
-            // Check if all are done
-            const allDone = historyEntryIds.every(entryId => {
-              if (!entryId) return true;
-              const video = historyData.videos.find((v: any) => v.id === entryId);
-              return video && (video.status === 'completed' || video.status === 'failed');
-            });
-            
-            if (allDone || pollingAttempts >= maxPollingAttempts) {
-              if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-              }
-              setIsGenerating(false);
-            }
-          }
-        } catch (error) {
-          console.error('Error polling history:', error);
-        }
-      }, 2000);
-    } else {
+    // If no videos started successfully, stop polling
+    if (startedCount === 0) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
       setIsGenerating(false);
     }
     

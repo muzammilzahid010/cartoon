@@ -43,8 +43,8 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control. **Per-Scene Token Rotation**: Cartoon story generation now uses a different API token for each scene (Scene 1 → Token A, Scene 2 → Token B, etc.), distributing load across multiple tokens instead of using one token for all scenes.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout. **Smart Token Rotation**: If video doesn't complete in 2 minutes, automatically tries next API token; if still not completed after 4 minutes total, marks as failed.
-- **Bulk Generation**: All videos saved to history immediately with "queued" status before processing starts. Videos start with 20-second staggered delays (not sequential - all process in parallel). Uses regenerate endpoint with background polling. UI polls history every 2 seconds for progress updates. Ensures all videos appear in history even if user reloads page during generation.
-- **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes. Videos stuck in queued status are automatically marked as failed after 10 minutes. Cleanup runs every 2 minutes to catch stuck videos quickly.
+- **Bulk Generation**: Optimized for speed with parallel processing. Videos are created and sent to VEO generation with 20-second delays between requests. Polling starts immediately and runs in background (every 2 seconds) while continuing to send new requests. No "queued" status - videos go straight to "pending" when generation starts. All videos process in parallel for maximum speed.
+- **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting. Cleanup runs every 2 minutes via background job.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts. Also cleans up expired temporary videos.
 - **Temporary Video Storage**: New feature for storing merged videos with 24-hour expiry in Replit Object Storage. Uses `createWriteStream` for efficient file uploads. Includes hourly cleanup job to delete expired videos automatically. Ideal for preview generation without consuming permanent storage.
 - **Video Merging**: Three approaches - (1) **Cartoon Projects**: fal.ai FFmpeg API for cloud-based merging of project scenes. (2) **History Selection (Permanent)**: Local FFmpeg processing for user-selected videos (up to 19), uploads to Cloudinary using unsigned upload preset. (3) **History Selection (Temporary)**: Local FFmpeg processing with temporary storage in Object Storage, auto-expires in 24 hours. Downloads videos, merges using FFmpeg concat demuxer, and cleans up temp files. Security enforced via video ID verification and ownership checks. **Smart Migration**: Videos from Google Cloud Storage are automatically migrated to Cloudinary before merging to ensure permanent availability (GCS URLs expire).
@@ -68,12 +68,14 @@ All VEO-generated videos now automatically upload to Cloudinary for permanent st
 - **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
 - **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
 
-### Smart Timeout for Stuck Queued Videos
-Fixed issue where videos stuck in "queued" status would wait indefinitely, with intelligence to not interrupt active bulk generations:
-- **30-Minute Timeout**: Videos in queued status for more than 30 minutes are automatically marked as failed
-- **Smart Detection**: Skips timeout if there are any pending videos (indicates active bulk generation in progress)
-- **Background Job**: Cleanup runs every 2 minutes but only acts when no active processing detected
-- **User Impact**: Videos waiting in bulk queue won't be prematurely failed, only truly stuck videos timeout
+### Bulk Generation Speed Optimization
+Redesigned bulk video generation for maximum speed and reliability:
+- **No Queued Status**: Videos go straight to "pending" when generation starts - no waiting in queue
+- **Parallel Processing**: All videos process simultaneously after being sent to VEO
+- **20-Second Request Delays**: Sends VEO generation requests every 20 seconds to avoid rate limits
+- **Background Polling**: Status checks run in background (every 2 seconds) while sending new requests
+- **No Stuck Videos**: Removed queued timeout mechanism since videos no longer use queued status
+- **Continuous Updates**: UI updates in real-time as videos complete, even while sending new requests
 
 ### Fixed Video Merge Cloudinary Upload
 Fixed critical bug in FFmpeg video merge that prevented Cloudinary uploads:

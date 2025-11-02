@@ -159,55 +159,7 @@ app.use((req, res, next) => {
   setInterval(checkAndCleanupTempVideos, 60 * 60 * 1000);
   console.log('[Hourly Cleanup] Temporary video cleanup scheduled (runs every hour)');
 
-  // Timeout stuck queued videos - runs every 2 minutes
-  const timeoutStuckQueuedVideos = async () => {
-    try {
-      const { db } = await import('./db');
-      const { videoHistory } = await import('@shared/schema');
-      const { sql, and, eq, lt } = await import('drizzle-orm');
-      
-      // Only timeout videos that have been queued for more than 30 minutes
-      // AND have no other videos being actively processed (pending) for the same user
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-      
-      // First, check if there are any pending videos (active processing)
-      const pendingCheck = await db.execute(sql`
-        SELECT COUNT(*) as count FROM video_history WHERE status = 'pending'
-      `);
-      
-      const hasPendingVideos = pendingCheck.rows && pendingCheck.rows[0] && (pendingCheck.rows[0] as any).count > 0;
-      
-      // If there are pending videos, skip timeout (bulk generation is still running)
-      if (hasPendingVideos) {
-        console.log('[Queued Timeout] Skipping timeout - found pending videos, bulk generation is active');
-        return;
-      }
-      
-      // Find videos that have been queued for more than 30 minutes with no active processing
-      const result = await db.execute(sql`
-        UPDATE video_history 
-        SET status = 'failed' 
-        WHERE status = 'queued' 
-        AND created_at < ${thirtyMinutesAgo.toISOString()}
-        RETURNING id, title
-      `);
-      
-      if (result.rows && result.rows.length > 0) {
-        console.log(`[Queued Timeout] Marked ${result.rows.length} stuck queued videos as failed`);
-        result.rows.forEach((row: any) => {
-          console.log(`  - ${row.title || row.id}`);
-        });
-      }
-    } catch (error) {
-      console.error('[Queued Timeout] Error timing out stuck queued videos:', error);
-    }
-  };
-  
-  setInterval(timeoutStuckQueuedVideos, 2 * 60 * 1000); // Every 2 minutes
-  console.log('[Queued Timeout] Automatic timeout for stuck queued videos scheduled (runs every 2 minutes)');
-  
-  // Run immediately on startup to clear any existing stuck videos
-  timeoutStuckQueuedVideos();
+  // Note: Queued timeout disabled since bulk generation now goes straight to pending status
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
