@@ -7,18 +7,16 @@ import { writeFile, mkdir, rm, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { v2 as cloudinary } from 'cloudinary';
 import { ObjectStorageService } from './objectStorage';
+import FormData from 'form-data';
 
 const execAsync = promisify(exec);
 const objectStorageService = new ObjectStorageService();
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: 'dajl2ibnc',
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// Cloudinary configuration (unsigned upload)
+const CLOUDINARY_CLOUD_NAME = 'dy40igzli';
+const CLOUDINARY_UPLOAD_PRESET = 'demo123';
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
 
 export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string> {
   if (videoUrls.length === 0) {
@@ -82,30 +80,29 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
       throw new Error(`FFmpeg failed: ${ffmpegError.message}`);
     }
 
-    // Step 4: Upload merged video to Cloudinary
+    // Step 4: Upload merged video to Cloudinary using unsigned upload
     console.log(`[FFmpeg Merger] Uploading merged video to Cloudinary...`);
     
-    const uploadResult = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload(
-        outputFile,
-        {
-          resource_type: 'video',
-          folder: 'cartoon-videos/merged',
-          public_id: `merged-${uniqueId}`,
-          overwrite: true,
-          use_filename: false,
-        },
-        (error, result) => {
-          if (error) {
-            console.error(`[FFmpeg Merger] Cloudinary upload error:`, error);
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        }
-      );
+    const videoBuffer = await readFile(outputFile);
+    const formData = new FormData();
+    formData.append('file', videoBuffer, {
+      filename: `merged-${uniqueId}.mp4`,
+      contentType: 'video/mp4'
+    });
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'cartoon-videos/merged');
+    
+    const uploadResponse = await fetch(CLOUDINARY_UPLOAD_URL, {
+      method: 'POST',
+      body: formData as any,
     });
 
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Cloudinary upload failed: ${uploadResponse.statusText} - ${errorText}`);
+    }
+
+    const uploadResult = await uploadResponse.json();
     const cloudinaryUrl = uploadResult.secure_url;
     console.log(`[FFmpeg Merger] Upload complete! URL: ${cloudinaryUrl}`);
 
