@@ -68,12 +68,12 @@ All VEO-generated videos now automatically upload to Cloudinary for permanent st
 - **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
 - **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
 
-### Automatic Timeout for Stuck Queued Videos
-Fixed issue where videos stuck in "queued" status would wait indefinitely:
-- **10-Minute Timeout**: Videos in queued status for more than 10 minutes are automatically marked as failed
-- **Background Job**: Cleanup runs every 2 minutes to catch stuck videos quickly
-- **Startup Cleanup**: Runs immediately on server startup to clear existing stuck videos
-- **User Impact**: No more indefinitely waiting videos - clear failure status within 10 minutes
+### Smart Timeout for Stuck Queued Videos
+Fixed issue where videos stuck in "queued" status would wait indefinitely, with intelligence to not interrupt active bulk generations:
+- **30-Minute Timeout**: Videos in queued status for more than 30 minutes are automatically marked as failed
+- **Smart Detection**: Skips timeout if there are any pending videos (indicates active bulk generation in progress)
+- **Background Job**: Cleanup runs every 2 minutes but only acts when no active processing detected
+- **User Impact**: Videos waiting in bulk queue won't be prematurely failed, only truly stuck videos timeout
 
 ### Fixed Video Merge Cloudinary Upload
 Fixed critical bug in FFmpeg video merge that prevented Cloudinary uploads:

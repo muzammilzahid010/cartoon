@@ -164,16 +164,31 @@ app.use((req, res, next) => {
     try {
       const { db } = await import('./db');
       const { videoHistory } = await import('@shared/schema');
-      const { sql } = await import('drizzle-orm');
+      const { sql, and, eq, lt } = await import('drizzle-orm');
       
-      // Find videos that have been queued for more than 10 minutes
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      // Only timeout videos that have been queued for more than 30 minutes
+      // AND have no other videos being actively processed (pending) for the same user
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
       
+      // First, check if there are any pending videos (active processing)
+      const pendingCheck = await db.execute(sql`
+        SELECT COUNT(*) as count FROM video_history WHERE status = 'pending'
+      `);
+      
+      const hasPendingVideos = pendingCheck.rows && pendingCheck.rows[0] && (pendingCheck.rows[0] as any).count > 0;
+      
+      // If there are pending videos, skip timeout (bulk generation is still running)
+      if (hasPendingVideos) {
+        console.log('[Queued Timeout] Skipping timeout - found pending videos, bulk generation is active');
+        return;
+      }
+      
+      // Find videos that have been queued for more than 30 minutes with no active processing
       const result = await db.execute(sql`
         UPDATE video_history 
         SET status = 'failed' 
         WHERE status = 'queued' 
-        AND created_at < ${tenMinutesAgo.toISOString()}
+        AND created_at < ${thirtyMinutesAgo.toISOString()}
         RETURNING id, title
       `);
       
