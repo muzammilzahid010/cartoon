@@ -75,6 +75,12 @@ Fixed issue where videos stuck in "queued" status would wait indefinitely:
 - **Startup Cleanup**: Runs immediately on server startup to clear existing stuck videos
 - **User Impact**: No more indefinitely waiting videos - clear failure status within 10 minutes
 
+### Fixed Video Merge Cloudinary Upload
+Fixed critical bug in FFmpeg video merge that prevented Cloudinary uploads:
+- **Root Cause**: Missing `Content-Type` headers with multipart boundary when using `form-data` package
+- **Fix**: Added `formData.getHeaders()` to upload request to include proper multipart headers
+- **Impact**: Video merge now successfully uploads to Cloudinary with unsigned upload preset
+
 ### Video Storage Migration & Cloudinary Integration
 Enhanced video merging with automatic migration from Google Cloud Storage to Cloudinary:
 - **Unsigned Upload**: Switched to Cloudinary unsigned upload preset (`demo123`) - no API keys required

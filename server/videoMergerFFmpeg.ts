@@ -93,6 +93,7 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
     
     const uploadResponse = await fetch(CLOUDINARY_UPLOAD_URL, {
       method: 'POST',
+      headers: formData.getHeaders(),
       body: formData as any,
     });
 
