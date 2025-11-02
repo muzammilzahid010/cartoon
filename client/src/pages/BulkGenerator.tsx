@@ -467,7 +467,7 @@ export default function BulkGenerator() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || promptCount === 0 || promptCount > 20}
+                disabled={isGenerating || promptCount === 0 || promptCount > 200}
                 className="w-full h-12 md:h-14 bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift text-base md:text-lg font-semibold border-0"
                 data-testid="button-generate-bulk"
               >
