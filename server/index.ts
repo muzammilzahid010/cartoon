@@ -159,7 +159,33 @@ app.use((req, res, next) => {
   setInterval(checkAndCleanupTempVideos, 60 * 60 * 1000);
   console.log('[Hourly Cleanup] Temporary video cleanup scheduled (runs every hour)');
 
-  // Note: Queued timeout disabled since bulk generation now goes straight to pending status
+  // Timeout cleanup for stuck pending videos
+  const checkAndTimeoutPendingVideos = async () => {
+    try {
+      const { db } = await import('./db');
+      const { videoHistory } = await import('@shared/schema');
+      const { sql } = await import('drizzle-orm');
+      
+      const result = await db.execute(sql`
+        UPDATE video_history 
+        SET status = 'failed' 
+        WHERE status = 'pending' 
+        AND (NOW() - created_at::timestamp) > INTERVAL '4 minutes'
+        RETURNING id
+      `);
+      
+      const count = result.rowCount || 0;
+      if (count > 0) {
+        console.log(`[Timeout Cleanup] Marked ${count} stuck videos as failed (pending > 4 minutes)`);
+      }
+    } catch (error) {
+      console.error('[Timeout Cleanup] Error timing out pending videos:', error);
+    }
+  };
+  
+  // Run timeout cleanup every 2 minutes
+  setInterval(checkAndTimeoutPendingVideos, 2 * 60 * 1000);
+  console.log('[Timeout Cleanup] Pending video timeout job scheduled (runs every 2 minutes)');
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
