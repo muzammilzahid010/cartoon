@@ -90,7 +90,6 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
       contentType: 'video/mp4'
     });
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', 'cartoon-videos/merged');
     
     const uploadResponse = await fetch(CLOUDINARY_UPLOAD_URL, {
       method: 'POST',
