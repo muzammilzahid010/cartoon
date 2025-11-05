@@ -224,7 +224,7 @@ export default function Home() {
         <div className="mt-16 text-center">
           <div className="inline-flex items-center gap-2 text-gray-400 text-sm">
             <Sparkles className="w-4 h-4" />
-            <span>Powered by VEO 3.1, Gemini AI, and GPT-5</span>
+            <span>Powered by VEO 3.1 and GPT-5</span>
           </div>
         </div>
       </main>
