@@ -663,7 +663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Script creator endpoint
-  app.post("/api/generate-script", requireAuth, async (req, res) => {
+  app.post("/api/generate-script", async (req, res) => {
     try {
       const schema = z.object({
         storyAbout: z.string().min(5, "Story description must be at least 5 characters"),
@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { storyAbout, numberOfPrompts, finalStep } = validationResult.data;
 
-      // Generate script using Gemini AI
+      // Generate script using OpenAI GPT-5
       const script = await generateScript(storyAbout, numberOfPrompts, finalStep);
 
       res.json({ script });
