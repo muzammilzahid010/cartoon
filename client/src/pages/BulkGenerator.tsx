@@ -404,7 +404,7 @@ export default function BulkGenerator() {
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Generating ({completedCount + failedCount}/{generationProgress.length})
+                    Processing...
                   </>
                 ) : (
                   <>
@@ -413,110 +413,14 @@ export default function BulkGenerator() {
                   </>
                 )}
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Progress Section */}
-          <Card className="shadow-2xl hover-lift transition-all duration-300 animate-fade-in border border-white/10 bg-[#1e2838] dark:bg-[#181e2a]" style={{animationDelay: '0.1s'}}>
-            <CardHeader className="border-b border-white/10 pb-4">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-purple-400" />
-                Generation Progress
-              </CardTitle>
-              <CardDescription className="text-gray-300">
-                Track the status of each video in real-time
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {generationProgress.length > 0 && (
-                <div className="mb-6 p-4 bg-purple-600/10 border border-purple-500/30 rounded-xl">
-                  <div className="flex justify-between text-sm mb-3">
-                    <span className="text-gray-300 font-medium">
-                      Overall Progress
-                    </span>
-                    <span className="text-white font-bold">
-                      {completedCount + failedCount}/{generationProgress.length}
-                    </span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-3" />
+              
+              {isGenerating && (
+                <div className="mt-4 p-4 bg-purple-600/10 border border-purple-500/30 rounded-xl">
+                  <p className="text-sm text-gray-300 text-center">
+                    Videos are being generated in the background. Check the <Link href="/history" className="text-purple-400 hover:text-purple-300 underline">Video History</Link> page to track progress.
+                  </p>
                 </div>
               )}
-
-              <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                {generationProgress.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No videos in progress</p>
-                  </div>
-                ) : (
-                  generationProgress.map((video, index) => (
-                    <div
-                      key={index}
-                      className="border rounded-lg p-4 dark:border-gray-600"
-                      data-testid={`video-status-${index}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-1">
-                          {video.status === "pending" && (
-                            <Clock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                          )}
-                          {video.status === "processing" && (
-                            <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
-                          )}
-                          {video.status === "completed" && (
-                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                          )}
-                          {video.status === "failed" && (
-                            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              Video {index + 1}
-                            </p>
-                            {video.tokenLabel && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                                {video.tokenLabel}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
-                            {video.prompt}
-                          </p>
-                          {video.status === "completed" && video.videoUrl && (
-                            <div className="mt-3">
-                              <video
-                                src={video.videoUrl}
-                                controls
-                                className="w-full rounded-lg border border-gray-200 dark:border-gray-600"
-                                data-testid={`video-player-${index}`}
-                                style={{ maxHeight: "240px" }}
-                              >
-                                Your browser does not support the video tag.
-                              </video>
-                              <a
-                                href={video.videoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-purple-600 dark:text-purple-400 hover:underline mt-2 inline-block"
-                                data-testid={`link-video-${index}`}
-                              >
-                                Open in new tab
-                              </a>
-                            </div>
-                          )}
-                          {video.status === "failed" && video.error && (
-                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                              {video.error}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
             </CardContent>
           </Card>
         </div>
