@@ -84,9 +84,9 @@ async function processSingleVideo(video: QueuedVideo): Promise<void> {
       }]
     };
 
-    // Add timeout to fetch request (30 seconds)
+    // Add timeout to fetch request (90 seconds - VEO API can be slow to accept requests)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 90000);
     
     let response;
     let data;
@@ -107,7 +107,7 @@ async function processSingleVideo(video: QueuedVideo): Promise<void> {
     } catch (fetchError: any) {
       clearTimeout(timeout);
       if (fetchError.name === 'AbortError') {
-        const errorMessage = `Request timeout after 30 seconds - VEO API not responding`;
+        const errorMessage = `Request timeout after 90 seconds - VEO API not responding`;
         console.error('[Bulk Queue] Request timeout:', fetchError);
         await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
       } else {
@@ -300,6 +300,10 @@ async function startBackgroundPolling(
                 }]
               };
 
+              // Add timeout for retry request too
+              const retryController = new AbortController();
+              const retryTimeout = setTimeout(() => retryController.abort(), 90000);
+              
               const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
                 method: 'POST',
                 headers: {
@@ -307,7 +311,10 @@ async function startBackgroundPolling(
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
+                signal: retryController.signal,
               });
+              
+              clearTimeout(retryTimeout);
 
               const data = await response.json();
               
