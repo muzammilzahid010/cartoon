@@ -9,13 +9,10 @@ import {
   type UpdateTokenSettings,
   type VideoHistory,
   type InsertVideoHistory,
-  type Project,
-  type InsertProject,
   users,
   apiTokens,
   tokenSettings,
   videoHistory,
-  projects,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -66,13 +63,6 @@ export interface IStorage {
   addVideoHistory(video: InsertVideoHistory): Promise<VideoHistory>;
   updateVideoHistoryStatus(videoId: string, userId: string, status: string, videoUrl?: string, errorMessage?: string): Promise<VideoHistory | undefined>;
   updateVideoHistoryFields(videoId: string, fields: Partial<VideoHistory>): Promise<VideoHistory | undefined>;
-  
-  // Projects
-  getUserProjects(userId: string): Promise<Project[]>;
-  getProject(projectId: string, userId: string): Promise<Project | undefined>;
-  createProject(project: InsertProject): Promise<Project>;
-  updateProject(projectId: string, userId: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
-  deleteProject(projectId: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -449,52 +439,6 @@ export class DatabaseStorage implements IStorage {
 
   async clearAllVideoHistory(): Promise<void> {
     await db.delete(videoHistory);
-  }
-
-  // Project methods
-  async getUserProjects(userId: string): Promise<Project[]> {
-    return await db
-      .select()
-      .from(projects)
-      .where(eq(projects.userId, userId))
-      .orderBy(desc(projects.createdAt));
-  }
-
-  async getProject(projectId: string, userId: string): Promise<Project | undefined> {
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
-    return project || undefined;
-  }
-
-  async createProject(project: InsertProject): Promise<Project> {
-    const [newProject] = await db
-      .insert(projects)
-      .values(project)
-      .returning();
-    return newProject;
-  }
-
-  async updateProject(
-    projectId: string,
-    userId: string,
-    updates: Partial<InsertProject>
-  ): Promise<Project | undefined> {
-    const [updated] = await db
-      .update(projects)
-      .set({ ...updates, updatedAt: new Date().toISOString() })
-      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
-      .returning();
-    return updated || undefined;
-  }
-
-  async deleteProject(projectId: string, userId: string): Promise<boolean> {
-    const result = await db
-      .delete(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
-      .returning();
-    return result.length > 0;
   }
 }
 

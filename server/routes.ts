@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { 
-  storyInputSchema, 
   loginSchema, 
   insertUserSchema, 
   updateUserPlanSchema, 
@@ -11,10 +10,8 @@ import {
   insertApiTokenSchema,
   bulkReplaceTokensSchema,
   updateTokenSettingsSchema,
-  videoHistory,
-  type Scene 
+  videoHistory
 } from "@shared/schema";
-import { generateScenes } from "./gemini";
 import { generateScript } from "./openai-script";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
@@ -431,37 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videos = await storage.getUserVideoHistory(userId);
-      
-      // Group videos by project
-      const grouped: Record<string, { project?: any; videos: any[] }> = {};
-      
-      for (const video of videos) {
-        const key = video.projectId || 'standalone';
-        
-        if (!grouped[key]) {
-          grouped[key] = {
-            videos: []
-          };
-          
-          // Fetch project details if this is a project video
-          if (video.projectId) {
-            const project = await storage.getProject(video.projectId, userId);
-            if (project) {
-              grouped[key].project = {
-                id: project.id,
-                title: project.title,
-                scenes: JSON.parse(project.scenes),
-                characters: JSON.parse(project.characters),
-                mergedVideoUrl: project.mergedVideoUrl,
-              };
-            }
-          }
-        }
-        
-        grouped[key].videos.push(video);
-      }
-      
-      res.json({ videos, grouped });
+      res.json({ videos });
     } catch (error) {
       console.error("Error fetching video history:", error);
       res.status(500).json({ 
@@ -617,46 +584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating video history:", error);
       res.status(500).json({ 
         error: "Failed to update video history",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Scene generation endpoint
-  app.post("/api/generate-scenes", requireAuth, async (req, res) => {
-    try {
-      // Validate request body
-      const validationResult = storyInputSchema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          error: "Invalid input", 
-          details: validationResult.error.errors 
-        });
-      }
-
-      const storyInput = validationResult.data;
-      const userId = req.session.userId!;
-
-      // Generate scenes using Gemini AI
-      const scenes = await generateScenes(storyInput);
-
-      // Auto-save as project if title is provided or generate default title
-      const projectTitle = storyInput.title || `Cartoon Story - ${new Date().toLocaleDateString()}`;
-      
-      const project = await storage.createProject({
-        userId,
-        title: projectTitle,
-        script: storyInput.script,
-        characters: JSON.stringify(storyInput.characters),
-        scenes: JSON.stringify(scenes),
-      });
-
-      res.json({ scenes, projectId: project.id });
-    } catch (error) {
-      console.error("Error in /api/generate-scenes:", error);
-      res.status(500).json({ 
-        error: "Failed to generate scenes",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -1533,8 +1460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videos: z.array(z.object({
           sceneNumber: z.number(),
           videoUrl: z.string()
-        })),
-        projectId: z.string().optional()
+        }))
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -1546,7 +1472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { videos, projectId } = validationResult.data;
+      const { videos } = validationResult.data;
       const userId = req.session.userId!;
 
       if (videos.length === 0) {
@@ -1565,13 +1491,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mergedVideoUrl = await mergeVideosWithFalAI(videoUrls);
       console.log(`[Merge Videos] Videos merged successfully with fal.ai`);
       console.log(`[Merge Videos] Merged video URL: ${mergedVideoUrl}`);
-
-      // Save merged video URL to project if projectId provided
-      if (projectId) {
-        console.log(`[Merge Videos] Saving merged video URL to project: ${projectId}`);
-        await storage.updateProject(projectId, userId, { mergedVideoUrl: mergedVideoUrl });
-        console.log(`[Merge Videos] Project updated successfully`);
-      }
 
       res.json({ 
         success: true,
@@ -1992,198 +1911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in /api/cleanup-expired-videos:", error);
       res.status(500).json({ 
         error: "Failed to cleanup expired videos",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-
-  // Project endpoints
-  app.get("/api/projects", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const projects = await storage.getUserProjects(userId);
-      res.json({ projects });
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-      res.status(500).json({ 
-        error: "Failed to fetch projects",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  app.get("/api/projects/:id", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const { id } = req.params;
-      const project = await storage.getProject(id, userId);
-
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-
-      res.json({ project });
-    } catch (error) {
-      console.error("Error fetching project:", error);
-      res.status(500).json({ 
-        error: "Failed to fetch project",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  app.post("/api/projects", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const schema = z.object({
-        title: z.string().min(1, "Title is required"),
-        script: z.string().min(50, "Script must be at least 50 characters"),
-        characters: z.string(), // JSON string
-        scenes: z.string(), // JSON string
-        mergedVideoUrl: z.string().optional(),
-      });
-
-      const validationResult = schema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          error: "Invalid input", 
-          details: validationResult.error.errors 
-        });
-      }
-
-      const project = await storage.createProject({
-        userId,
-        ...validationResult.data
-      });
-
-      res.json({ project });
-    } catch (error) {
-      console.error("Error creating project:", error);
-      res.status(500).json({ 
-        error: "Failed to create project",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  app.patch("/api/projects/:id", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const { id } = req.params;
-
-      const schema = z.object({
-        title: z.string().min(1).optional(),
-        mergedVideoUrl: z.string().optional(),
-        scenes: z.string().optional(),
-      });
-
-      const validationResult = schema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          error: "Invalid input", 
-          details: validationResult.error.errors 
-        });
-      }
-
-      const updated = await storage.updateProject(id, userId, validationResult.data);
-
-      if (!updated) {
-        return res.status(404).json({ error: "Project not found or access denied" });
-      }
-
-      res.json({ project: updated });
-    } catch (error) {
-      console.error("Error updating project:", error);
-      res.status(500).json({ 
-        error: "Failed to update project",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  app.delete("/api/projects/:id", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const { id } = req.params;
-      const deleted = await storage.deleteProject(id, userId);
-
-      if (!deleted) {
-        return res.status(404).json({ error: "Project not found or access denied" });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      res.status(500).json({ 
-        error: "Failed to delete project",
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Update scene videos for a project
-  app.patch("/api/projects/:id/scene-videos", requireAuth, async (req, res) => {
-    try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const { id } = req.params;
-      const schema = z.object({
-        sceneVideos: z.array(z.object({
-          sceneNumber: z.number(),
-          videoUrl: z.string().optional(),
-          status: z.enum(['pending', 'completed', 'failed'])
-        }))
-      });
-
-      const validationResult = schema.safeParse(req.body);
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          error: "Invalid input", 
-          details: validationResult.error.errors 
-        });
-      }
-
-      const { sceneVideos } = validationResult.data;
-      
-      const updated = await storage.updateProject(id, userId, {
-        sceneVideos: JSON.stringify(sceneVideos)
-      });
-
-      if (!updated) {
-        return res.status(404).json({ error: "Project not found or access denied" });
-      }
-
-      res.json({ success: true, project: updated });
-    } catch (error) {
-      console.error("Error updating scene videos:", error);
-      res.status(500).json({ 
-        error: "Failed to update scene videos",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

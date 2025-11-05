@@ -10,8 +10,6 @@ import VeoGenerator from "@/pages/VeoGenerator";
 import BulkGenerator from "@/pages/BulkGenerator";
 import ScriptCreator from "@/pages/ScriptCreator";
 import History from "@/pages/History";
-import Projects from "@/pages/Projects";
-import ProjectDetail from "@/pages/ProjectDetail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,8 +22,6 @@ function Router() {
       <Route path="/bulk-generator" component={BulkGenerator} />
       <Route path="/script-creator" component={ScriptCreator} />
       <Route path="/history" component={History} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/projects/:id" component={ProjectDetail} />
       <Route component={NotFound} />
     </Switch>
   );

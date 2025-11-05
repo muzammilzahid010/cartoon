@@ -86,61 +86,10 @@ export type BulkReplaceTokens = z.infer<typeof bulkReplaceTokensSchema>;
 export type TokenSettings = typeof tokenSettings.$inferSelect;
 export type UpdateTokenSettings = z.infer<typeof updateTokenSettingsSchema>;
 
-// Character schema for the story
-export const characterSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, "Character name is required"),
-  description: z.string().min(1, "Character description is required"),
-});
-
-export type Character = z.infer<typeof characterSchema>;
-
-// Story input schema
-export const storyInputSchema = z.object({
-  script: z.string().min(50, "Script must be at least 50 characters"),
-  characters: z.array(characterSchema).min(1, "At least one character is required"),
-  title: z.string().min(1, "Project title is required").optional(),
-});
-
-export type StoryInput = z.infer<typeof storyInputSchema>;
-
-// Scene schema for generated output
-export const sceneSchema = z.object({
-  scene: z.number(),
-  title: z.string(),
-  description: z.string(),
-});
-
-export type Scene = z.infer<typeof sceneSchema>;
-
-// Projects schema for storing cartoon story generations
-export const projects = pgTable("projects", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  title: text("title").notNull(),
-  script: text("script").notNull(),
-  characters: text("characters").notNull(), // JSON string of Character[]
-  scenes: text("scenes").notNull(), // JSON string of Scene[]
-  sceneVideos: text("scene_videos"), // JSON string of { sceneNumber: number, videoUrl: string, status: 'pending' | 'completed' | 'failed' }[]
-  mergedVideoUrl: text("merged_video_url"),
-  createdAt: text("created_at").notNull().default(sql`now()::text`),
-  updatedAt: text("updated_at").notNull().default(sql`now()::text`),
-});
-
-export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type Project = typeof projects.$inferSelect;
-export type InsertProject = z.infer<typeof insertProjectSchema>;
-
 // Video history schema for storing generated videos
 export const videoHistory = pgTable("video_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  projectId: varchar("project_id").references(() => projects.id),
   prompt: text("prompt").notNull(),
   aspectRatio: text("aspect_ratio").notNull(),
   videoUrl: text("video_url"),
