@@ -51,6 +51,8 @@ const tokenRotationSettingsSchema = z.object({
   rotationEnabled: z.boolean(),
   rotationIntervalMinutes: z.string().min(1, "Interval is required"),
   maxRequestsPerToken: z.string().min(1, "Max requests is required"),
+  videosPerBatch: z.string().min(1, "Videos per batch is required"),
+  batchDelaySeconds: z.string().min(1, "Batch delay is required"),
 });
 
 const bulkReplaceTokensSchema = z.object({
@@ -89,6 +91,8 @@ interface TokenRotationSettings {
   rotationEnabled: boolean;
   rotationIntervalMinutes: string;
   maxRequestsPerToken: string;
+  videosPerBatch: string;
+  batchDelaySeconds: string;
 }
 
 export default function Admin() {
@@ -210,6 +214,8 @@ export default function Admin() {
         rotationEnabled: tokenSettingsData.settings.rotationEnabled,
         rotationIntervalMinutes: tokenSettingsData.settings.rotationIntervalMinutes,
         maxRequestsPerToken: tokenSettingsData.settings.maxRequestsPerToken,
+        videosPerBatch: tokenSettingsData.settings.videosPerBatch,
+        batchDelaySeconds: tokenSettingsData.settings.batchDelaySeconds,
       });
     }
   }, [tokenSettingsData]);
@@ -253,6 +259,8 @@ export default function Admin() {
       rotationEnabled: false,
       rotationIntervalMinutes: "60",
       maxRequestsPerToken: "1000",
+      videosPerBatch: "5",
+      batchDelaySeconds: "20",
     },
   });
 
@@ -400,6 +408,8 @@ export default function Admin() {
         rotationEnabled: data.rotationEnabled,
         rotationIntervalMinutes: data.rotationIntervalMinutes,
         maxRequestsPerToken: data.maxRequestsPerToken,
+        videosPerBatch: data.videosPerBatch,
+        batchDelaySeconds: data.batchDelaySeconds,
       });
       const result = await response.json();
       return result;
@@ -1150,6 +1160,65 @@ export default function Admin() {
                       )}
                     />
                   </div>
+
+                  {/* Batch Processing Settings */}
+                  <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
+                    <h4 className="font-semibold mb-3 text-gray-800 dark:text-white">Batch Processing Configuration</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Configure how many videos are sent to the VEO API in each batch and the delay between batches to optimize generation performance.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={rotationSettingsForm.control}
+                        name="videosPerBatch"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700 dark:text-gray-300">
+                              Videos per Batch (1-50)
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="1"
+                                max="50"
+                                data-testid="input-videos-per-batch"
+                                className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs text-gray-500 dark:text-gray-400">
+                              Number of videos sent in parallel in each batch
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={rotationSettingsForm.control}
+                        name="batchDelaySeconds"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700 dark:text-gray-300">
+                              Batch Delay (10-120 seconds)
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="10"
+                                max="120"
+                                data-testid="input-batch-delay"
+                                className="dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs text-gray-500 dark:text-gray-400">
+                              Delay in seconds between processing batches
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
                   <Button
                     type="submit"
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 text-white"

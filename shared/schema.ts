@@ -59,6 +59,8 @@ export const tokenSettings = pgTable("token_settings", {
   rotationEnabled: boolean("rotation_enabled").notNull().default(false),
   rotationIntervalMinutes: text("rotation_interval_minutes").notNull().default("60"),
   maxRequestsPerToken: text("max_requests_per_token").notNull().default("1000"),
+  videosPerBatch: text("videos_per_batch").notNull().default("5"),
+  batchDelaySeconds: text("batch_delay_seconds").notNull().default("20"),
 });
 
 export const insertApiTokenSchema = createInsertSchema(apiTokens).pick({
@@ -74,6 +76,8 @@ export const updateTokenSettingsSchema = z.object({
   rotationEnabled: z.boolean(),
   rotationIntervalMinutes: z.string(),
   maxRequestsPerToken: z.string(),
+  videosPerBatch: z.string(),
+  batchDelaySeconds: z.string(),
 });
 
 export type ApiToken = typeof apiTokens.$inferSelect;

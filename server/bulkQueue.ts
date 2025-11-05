@@ -30,7 +30,146 @@ export function addToQueue(videos: QueuedVideo[]) {
 }
 
 /**
- * Process the queue in the background
+ * Process a single video from the batch
+ */
+async function processSingleVideo(video: QueuedVideo): Promise<void> {
+  try {
+    console.log(`[Bulk Queue] Processing video ${video.sceneNumber} (ID: ${video.videoId})`);
+    
+    // Get API token using round-robin rotation (wraps around for any number of videos)
+    let apiKey: string | undefined;
+    let rotationToken: ApiToken | undefined;
+    
+    rotationToken = await storage.getNextRotationToken();
+    
+    if (rotationToken) {
+      apiKey = rotationToken.token;
+      console.log(`[Bulk Queue] Using token ${rotationToken.label} (ID: ${rotationToken.id}) for video ${video.sceneNumber}`);
+      await storage.updateTokenUsage(rotationToken.id);
+    }
+    
+    if (!apiKey) {
+      apiKey = process.env.VEO3_API_KEY;
+      console.log('[Bulk Queue] Fallback: Using environment variable VEO3_API_KEY');
+    }
+
+    if (!apiKey) {
+      const errorMessage = `No API key available for video generation (scene ${video.sceneNumber})`;
+      console.error(`[Bulk Queue] ❌ CRITICAL: ${errorMessage}`);
+      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+      return;
+    }
+
+    // Send VEO generation request
+    const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+    const sceneId = `bulk-${video.videoId}-${Date.now()}`;
+    const seed = Math.floor(Math.random() * 100000);
+
+    const payload = {
+      clientContext: {
+        projectId: veoProjectId,
+        tool: "PINHOLE",
+        userPaygateTier: "PAYGATE_TIER_TWO"
+      },
+      requests: [{
+        aspectRatio: video.aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+        seed: seed,
+        textInput: {
+          prompt: video.prompt
+        },
+        videoModelKey: video.aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+        metadata: {
+          sceneId: sceneId
+        }
+      }]
+    };
+
+    // Add timeout to fetch request (30 seconds)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
+    let response;
+    let data;
+    
+    try {
+      response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeout);
+      data = await response.json();
+    } catch (fetchError: any) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        const errorMessage = `Request timeout after 30 seconds - VEO API not responding`;
+        console.error('[Bulk Queue] Request timeout:', fetchError);
+        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+      } else {
+        const errorMessage = `Network error: ${fetchError.message}`;
+        console.error('[Bulk Queue] Network error:', fetchError);
+        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+      }
+      
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      return;
+    }
+
+    if (!response.ok) {
+      const errorMessage = `VEO API error (${response.status}): ${JSON.stringify(data).substring(0, 200)}`;
+      console.error('[Bulk Queue] VEO API error:', data);
+      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+      
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      return;
+    }
+
+    if (!data.operations || data.operations.length === 0) {
+      const errorMessage = 'No operations returned from VEO API - possible API issue';
+      console.error('[Bulk Queue] No operations returned from VEO API');
+      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+      
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      return;
+    }
+
+    const operation = data.operations[0];
+    const operationName = operation.operation.name;
+
+    console.log(`[Bulk Queue] Started generation for video ${video.sceneNumber} - Operation: ${operationName}`);
+
+    // Update history with token ID if available
+    if (rotationToken) {
+      try {
+        await storage.updateVideoHistoryFields(video.videoId, { tokenUsed: rotationToken.id });
+      } catch (err) {
+        console.error('[Bulk Queue] Failed to update video history with token ID:', err);
+      }
+    }
+
+    // Start background polling for this video
+    startBackgroundPolling(video.videoId, video.userId, operationName, sceneId, apiKey, rotationToken);
+
+  } catch (error) {
+    const errorMessage = `Error processing video: ${error instanceof Error ? error.message : String(error)}`;
+    console.error(`[Bulk Queue] Error processing video ${video.sceneNumber}:`, error);
+    await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
+  }
+}
+
+/**
+ * Process the queue in the background with batch processing
  */
 async function processQueue() {
   if (isProcessing) {
@@ -41,166 +180,48 @@ async function processQueue() {
   isProcessing = true;
   console.log('[Bulk Queue] Started processing queue');
 
+  // Fetch batch settings from database
+  let videosPerBatch = 5;
+  let batchDelaySeconds = 20;
+  
+  try {
+    const settings = await storage.getTokenSettings();
+    if (settings) {
+      videosPerBatch = parseInt(settings.videosPerBatch, 10) || 5;
+      batchDelaySeconds = parseInt(settings.batchDelaySeconds, 10) || 20;
+      console.log(`[Bulk Queue] Using batch settings: ${videosPerBatch} videos per batch, ${batchDelaySeconds}s delay`);
+    }
+  } catch (error) {
+    console.error('[Bulk Queue] Error fetching batch settings, using defaults:', error);
+  }
+
   while (bulkQueue.length > 0) {
-    const video = bulkQueue.shift();
+    // Get N videos from queue for this batch
+    const batchSize = Math.min(videosPerBatch, bulkQueue.length);
+    const batch: QueuedVideo[] = [];
     
-    if (!video) {
+    for (let i = 0; i < batchSize; i++) {
+      const video = bulkQueue.shift();
+      if (video) {
+        batch.push(video);
+      }
+    }
+
+    if (batch.length === 0) {
       continue;
     }
 
-    try {
-      console.log(`[Bulk Queue] Processing video ${video.sceneNumber} (ID: ${video.videoId}). Remaining: ${bulkQueue.length}`);
-      
-      // Get API token using round-robin rotation (wraps around for any number of videos)
-      let apiKey: string | undefined;
-      let rotationToken: ApiToken | undefined;
-      
-      rotationToken = await storage.getNextRotationToken();
-      
-      if (rotationToken) {
-        apiKey = rotationToken.token;
-        console.log(`[Bulk Queue] Using token ${rotationToken.label} (ID: ${rotationToken.id}) for video ${video.sceneNumber}`);
-        await storage.updateTokenUsage(rotationToken.id);
-      }
-      
-      if (!apiKey) {
-        apiKey = process.env.VEO3_API_KEY;
-        console.log('[Bulk Queue] Fallback: Using environment variable VEO3_API_KEY');
-      }
+    console.log(`[Bulk Queue] Processing batch of ${batch.length} videos. Remaining in queue: ${bulkQueue.length}`);
 
-      if (!apiKey) {
-        const errorMessage = `No API key available for video generation (scene ${video.sceneNumber})`;
-        console.error(`[Bulk Queue] ❌ CRITICAL: ${errorMessage}`);
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-        continue;
-      }
+    // Process all videos in batch in parallel
+    await Promise.all(batch.map(video => processSingleVideo(video)));
 
-      // Send VEO generation request
-      const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
-      const sceneId = `bulk-${video.videoId}-${Date.now()}`;
-      const seed = Math.floor(Math.random() * 100000);
+    console.log(`[Bulk Queue] Batch of ${batch.length} videos submitted`);
 
-      const payload = {
-        clientContext: {
-          projectId: veoProjectId,
-          tool: "PINHOLE",
-          userPaygateTier: "PAYGATE_TIER_TWO"
-        },
-        requests: [{
-          aspectRatio: video.aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
-          seed: seed,
-          textInput: {
-            prompt: video.prompt
-          },
-          videoModelKey: video.aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
-          metadata: {
-            sceneId: sceneId
-          }
-        }]
-      };
-
-      // Add timeout to fetch request (30 seconds)
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
-      
-      let response;
-      let data;
-      
-      try {
-        response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeout);
-        data = await response.json();
-      } catch (fetchError: any) {
-        clearTimeout(timeout);
-        if (fetchError.name === 'AbortError') {
-          const errorMessage = `Request timeout after 30 seconds - VEO API not responding`;
-          console.error('[Bulk Queue] Request timeout:', fetchError);
-          await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-        } else {
-          const errorMessage = `Network error: ${fetchError.message}`;
-          console.error('[Bulk Queue] Network error:', fetchError);
-          await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-        }
-        
-        if (rotationToken) {
-          storage.recordTokenError(rotationToken.id);
-        }
-        
-        // Wait before processing next video
-        if (bulkQueue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
-        }
-        continue;
-      }
-
-      if (!response.ok) {
-        const errorMessage = `VEO API error (${response.status}): ${JSON.stringify(data).substring(0, 200)}`;
-        console.error('[Bulk Queue] VEO API error:', data);
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-        
-        if (rotationToken) {
-          storage.recordTokenError(rotationToken.id);
-        }
-        
-        // Wait before processing next video even on error
-        if (bulkQueue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
-        }
-        continue;
-      }
-
-      if (!data.operations || data.operations.length === 0) {
-        const errorMessage = 'No operations returned from VEO API - possible API issue';
-        console.error('[Bulk Queue] No operations returned from VEO API');
-        await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-        
-        if (rotationToken) {
-          storage.recordTokenError(rotationToken.id);
-        }
-        
-        // Wait before processing next video
-        if (bulkQueue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
-        }
-        continue;
-      }
-
-      const operation = data.operations[0];
-      const operationName = operation.operation.name;
-
-      console.log(`[Bulk Queue] Started generation for video ${video.sceneNumber} - Operation: ${operationName}`);
-
-      // Update history with token ID if available
-      if (rotationToken) {
-        try {
-          await storage.updateVideoHistoryFields(video.videoId, { tokenUsed: rotationToken.id });
-        } catch (err) {
-          console.error('[Bulk Queue] Failed to update video history with token ID:', err);
-        }
-      }
-
-      // Start background polling for this video
-      startBackgroundPolling(video.videoId, video.userId, operationName, sceneId, apiKey, rotationToken);
-
-    } catch (error) {
-      const errorMessage = `Error processing video: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(`[Bulk Queue] Error processing video ${video.sceneNumber}:`, error);
-      await storage.updateVideoHistoryStatus(video.videoId, video.userId, 'failed', undefined, errorMessage);
-    }
-
-    // Wait 20 seconds before processing next video
+    // Wait for batchDelaySeconds before processing next batch
     if (bulkQueue.length > 0) {
-      console.log(`[Bulk Queue] Waiting 20 seconds before next video...`);
-      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS_MS));
+      console.log(`[Bulk Queue] Waiting ${batchDelaySeconds} seconds before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, batchDelaySeconds * 1000));
     }
   }
 
