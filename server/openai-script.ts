@@ -30,7 +30,7 @@ export async function generateScript(
           content: prompt 
         }
       ],
-      max_tokens: 8192,
+      max_completion_tokens: 8192,
     });
 
     const storyboard = response.choices[0]?.message?.content || "";
