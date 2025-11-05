@@ -352,16 +352,41 @@ async function startBackgroundPolling(
           }
 
           const statusData = await statusResponse.json();
+          console.log(`[Bulk Queue Polling] Status for ${videoId}:`, JSON.stringify(statusData, null, 2).substring(0, 500));
 
           // Check operations array for status
           if (statusData.operations && statusData.operations.length > 0) {
-            const operation = statusData.operations[0].operation;
-            const opStatus = statusData.operations[0].status;
+            const operationData = statusData.operations[0];
+            const operation = operationData.operation;
+            const opStatus = operationData.status;
+            
+            console.log(`[Bulk Queue Polling] Video ${videoId} status: ${opStatus}`);
+            
+            // Extract video URL from nested metadata structure (matching veo3.ts)
+            let veoVideoUrl: string | undefined;
+            
+            if (operation?.metadata?.video?.fifeUrl) {
+              veoVideoUrl = operation.metadata.video.fifeUrl;
+            } else if (operation?.videoUrl) {
+              veoVideoUrl = operation.videoUrl;
+            } else if (operation?.fileUrl) {
+              veoVideoUrl = operation.fileUrl;
+            } else if (operation?.downloadUrl) {
+              veoVideoUrl = operation.downloadUrl;
+            }
+            
+            // Decode HTML entities (VEO returns &amp; instead of &)
+            if (veoVideoUrl) {
+              veoVideoUrl = veoVideoUrl
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'");
+            }
             
             // Check if video is completed
-            if (opStatus === 'MEDIA_GENERATION_STATUS_COMPLETE' || operation.videoUrl || operation.fileUrl || operation.downloadUrl) {
-              const veoVideoUrl = operation.videoUrl || operation.fileUrl || operation.downloadUrl;
-              
+            if (opStatus === 'MEDIA_GENERATION_STATUS_COMPLETE' || opStatus === 'MEDIA_GENERATION_STATUS_SUCCESSFUL' || opStatus === 'COMPLETED') {
               if (veoVideoUrl) {
                 console.log(`[Bulk Queue Polling] Video ${videoId} completed, uploading to Cloudinary...`);
                 
@@ -372,8 +397,10 @@ async function startBackgroundPolling(
                 await storage.updateVideoHistoryStatus(videoId, userId, 'completed', cloudinaryUrl);
                 console.log(`[Bulk Queue Polling] Video ${videoId} completed successfully`);
                 completed = true;
+              } else {
+                console.log(`[Bulk Queue Polling] Video ${videoId} shows complete but no URL found`);
               }
-            } else if (operation.error) {
+            } else if (operation?.error) {
               const errorMessage = `VEO generation failed: ${operation.error.message || JSON.stringify(operation.error).substring(0, 200)}`;
               console.error(`[Bulk Queue Polling] Video ${videoId} failed:`, operation.error);
               await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
