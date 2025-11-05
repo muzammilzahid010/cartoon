@@ -334,6 +334,22 @@ async function startBackgroundPolling(
             },
           });
 
+          // Check if response is JSON before parsing
+          const contentType = statusResponse.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            // Got HTML error page instead of JSON - token is likely invalid
+            const textResponse = await statusResponse.text();
+            const errorMessage = `Invalid API token - got HTML response (${statusResponse.status}). Token may be expired or invalid.`;
+            console.error(`[Bulk Queue Polling] ${errorMessage}. Response: ${textResponse.substring(0, 200)}`);
+            await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
+            
+            if (currentRotationToken) {
+              storage.recordTokenError(currentRotationToken.id);
+            }
+            completed = true;
+            continue;
+          }
+
           const statusData = await statusResponse.json();
 
           if (statusData.done) {
