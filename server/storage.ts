@@ -28,7 +28,7 @@ const tokenErrorTracking = new Map<string, number[]>();
 // Token cooldown: tokenId -> cooldown end timestamp
 const tokenCooldowns = new Map<string, number>();
 
-const ERROR_THRESHOLD = 5; // Max errors allowed
+const ERROR_THRESHOLD = 10; // Max errors allowed (increased from 5 to allow more retries)
 const ERROR_WINDOW_MS = 20 * 60 * 1000; // 20 minutes in milliseconds
 const COOLDOWN_DURATION_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 
