@@ -181,7 +181,7 @@ async function processQueue() {
   console.log('[Bulk Queue] Started processing queue');
 
   // Fetch batch settings from database
-  let videosPerBatch = 5;
+  let videosPerBatch = 10;
   let batchDelaySeconds = 20;
   
   try {
