@@ -337,7 +337,7 @@ async function startBackgroundPolling(
             }]
           };
 
-          const statusResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncCheckStatus', {
+          const statusResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${currentApiKey}`,
