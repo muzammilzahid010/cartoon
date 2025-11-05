@@ -344,6 +344,10 @@ async function startBackgroundPolling(
             }]
           };
 
+          // Add timeout to status check (30 seconds)
+          const statusController = new AbortController();
+          const statusTimeout = setTimeout(() => statusController.abort(), 30000);
+
           const statusResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus', {
             method: 'POST',
             headers: {
@@ -351,10 +355,13 @@ async function startBackgroundPolling(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(requestBody),
+            signal: statusController.signal,
           });
 
+          clearTimeout(statusTimeout);
+
           if (!statusResponse.ok) {
-            console.error(`[Bulk Queue Polling] Status check failed (${statusResponse.status})`);
+            console.error(`[Bulk Queue Polling] Status check failed (${statusResponse.status}) - will retry on next poll`);
             continue; // Try again on next poll
           }
 
@@ -418,8 +425,16 @@ async function startBackgroundPolling(
               completed = true;
             }
           }
-        } catch (pollError) {
-          console.error(`[Bulk Queue Polling] Error polling video ${videoId}:`, pollError);
+        } catch (pollError: any) {
+          // Log network errors with more detail
+          if (pollError.name === 'AbortError') {
+            console.error(`[Bulk Queue Polling] Status check timeout for video ${videoId} - will retry on next poll`);
+          } else if (pollError.code === 'ECONNRESET' || pollError.cause?.code === 'ECONNRESET') {
+            console.error(`[Bulk Queue Polling] Network connection reset for video ${videoId} - will retry on next poll`);
+          } else {
+            console.error(`[Bulk Queue Polling] Error polling video ${videoId}:`, pollError);
+          }
+          // Continue polling - will retry on next attempt
         }
       }
 
