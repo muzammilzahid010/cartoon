@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: Google Gemini AI (`gemini-2.5-flash`) for scene generation, with automatic retry logic (up to 3 times with exponential backoff) and validation for scene count.
 - **Video Generation**: VEO 3 API. Prompts prefixed for "Disney Pixar-style 3D animation." Sequential processing with Server-Sent Events (SSE) for progress. Automatic prompt cleaning. Individual and bulk retry mechanisms with concurrency control. **Per-Scene Token Rotation**: Cartoon story generation now uses a different API token for each scene (Scene 1 → Token A, Scene 2 → Token B, etc.), distributing load across multiple tokens instead of using one token for all scenes.
 - **Video Regeneration**: Background polling with 4-minute timeout. Regenerate button triggers new VEO generation, polls asynchronously every 2 seconds (max 120 attempts), updates video URL on success, marks as failed on VEO error or timeout. **Smart Token Rotation**: If video doesn't complete in 2 minutes, automatically tries next API token; if still not completed after 4 minutes total, marks as failed.
-- **Bulk Generation**: Backend queue system for maximum reliability. All videos saved to database immediately when user clicks generate. **Backend Queue Worker**: Processes videos in background with 20-second delays between requests. **Round-Robin Token Rotation**: Each video uses a different API token (Video 1 → Token 1, Video 2 → Token 2, etc.) to prevent overloading a single token. **User Can Leave**: Videos continue generating even if user closes browser or navigates away - check progress in Video History. Background polling with 4-minute timeout and automatic token rotation on failures.
+- **Bulk Generation**: Backend queue system with configurable batch processing. All videos saved to database immediately when user clicks generate. **Batch Processing**: Videos sent in parallel batches (admin configurable: 1-50 videos per batch) with customizable delays (10-120 seconds) between batches for optimal throughput and rate limit management. **Backend Queue Worker**: Processes video batches in background. **Round-Robin Token Rotation**: Each video uses a different API token to prevent overloading a single token. **User Can Leave**: Videos continue generating even if user closes browser or navigates away - check progress in Video History. Background polling with 4-minute timeout and automatic token rotation on failures.
 - **Automatic Timeout**: Videos stuck in pending status are automatically marked as failed after 4 minutes to prevent indefinite waiting. Cleanup runs every 2 minutes via background job.
 - **Daily History Cleanup**: Automatically clears all video history at midnight Pakistan time (PKT - UTC+5) every day. Job runs every minute to check for midnight, prevents duplicate runs on same date, and works correctly even after server restarts. Also cleans up expired temporary videos.
 - **Temporary Video Storage**: New feature for storing merged videos with 24-hour expiry in Replit Object Storage. Uses `createWriteStream` for efficient file uploads. Includes hourly cleanup job to delete expired videos automatically. Ideal for preview generation without consuming permanent storage.
@@ -67,6 +67,20 @@ All VEO-generated videos now automatically upload to Cloudinary for permanent st
 - **Permanent Storage**: Videos stored on Cloudinary never expire, unlike temporary Google Cloud Storage URLs
 - **Fallback Handling**: If Cloudinary upload fails, system falls back to original VEO URL
 - **Regenerate Endpoint**: Updated to upload to Cloudinary before saving video URL to database
+
+### Batch Processing for Bulk Video Generation (LATEST)
+Implemented configurable batch processing system for maximum throughput:
+- **Admin Configurable Batching**: Admin can set batch size (1-50 videos) and delay between batches (10-120 seconds)
+- **Parallel Processing**: All videos in a batch are sent to VEO API simultaneously using Promise.all()
+- **Optimized Throughput**: Default 5 videos per batch with 20-second delays = 15 videos/minute vs 3 videos/minute with sequential
+- **Rate Limit Protection**: Configurable delays prevent API throttling
+- **Backward Compatible**: Queue worker fetches batch settings from database dynamically
+- **Admin UI**: Dedicated batch configuration section in Admin panel with real-time updates
+
+**Performance Example:**
+- Sequential (old): 50 videos × 20 sec = 17 minutes
+- Batch (5 per batch): 10 batches × 20 sec = 3-4 minutes (5x faster!)
+- Batch (10 per batch): 5 batches × 20 sec = 2-3 minutes (8x faster!)
 
 ### Backend Queue System for Bulk Generation (FIXED)
 Implemented backend queue worker that continues processing even after user leaves the page:
