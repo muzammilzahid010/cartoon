@@ -325,48 +325,57 @@ async function startBackgroundPolling(
           }
         }
 
-        // Check video status
+        // Check video status using proper API endpoint
         try {
-          const statusResponse = await fetch(`https://aisandbox-pa.googleapis.com/v1/${currentOperationName}`, {
+          const requestBody = {
+            operations: [{
+              operation: {
+                name: currentOperationName
+              },
+              sceneId: currentSceneId,
+              status: "MEDIA_GENERATION_STATUS_PENDING"
+            }]
+          };
+
+          const statusResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncCheckStatus', {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${currentApiKey}`,
               'Content-Type': 'application/json',
             },
+            body: JSON.stringify(requestBody),
           });
 
-          // Check if response is JSON before parsing
-          const contentType = statusResponse.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            // Got HTML error page instead of JSON - token is likely invalid
-            const textResponse = await statusResponse.text();
-            const errorMessage = `Invalid API token - got HTML response (${statusResponse.status}). Token may be expired or invalid.`;
-            console.error(`[Bulk Queue Polling] ${errorMessage}. Response: ${textResponse.substring(0, 200)}`);
-            await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
-            
-            if (currentRotationToken) {
-              storage.recordTokenError(currentRotationToken.id);
-            }
-            completed = true;
-            continue;
+          if (!statusResponse.ok) {
+            console.error(`[Bulk Queue Polling] Status check failed (${statusResponse.status})`);
+            continue; // Try again on next poll
           }
 
           const statusData = await statusResponse.json();
 
-          if (statusData.done) {
-            if (statusData.response?.generationResults?.[0]?.videoUrl) {
-              const veoVideoUrl = statusData.response.generationResults[0].videoUrl;
-              console.log(`[Bulk Queue Polling] Video ${videoId} completed, uploading to Cloudinary...`);
+          // Check operations array for status
+          if (statusData.operations && statusData.operations.length > 0) {
+            const operation = statusData.operations[0].operation;
+            const opStatus = statusData.operations[0].status;
+            
+            // Check if video is completed
+            if (opStatus === 'MEDIA_GENERATION_STATUS_COMPLETE' || operation.videoUrl || operation.fileUrl || operation.downloadUrl) {
+              const veoVideoUrl = operation.videoUrl || operation.fileUrl || operation.downloadUrl;
               
-              // Upload to Cloudinary
-              const { uploadVideoToCloudinary } = await import('./cloudinary');
-              const cloudinaryUrl = await uploadVideoToCloudinary(veoVideoUrl);
-              
-              await storage.updateVideoHistoryStatus(videoId, userId, 'completed', cloudinaryUrl);
-              console.log(`[Bulk Queue Polling] Video ${videoId} completed successfully`);
-              completed = true;
-            } else if (statusData.error) {
-              const errorMessage = `VEO generation failed: ${statusData.error.message || JSON.stringify(statusData.error).substring(0, 200)}`;
-              console.error(`[Bulk Queue Polling] Video ${videoId} failed:`, statusData.error);
+              if (veoVideoUrl) {
+                console.log(`[Bulk Queue Polling] Video ${videoId} completed, uploading to Cloudinary...`);
+                
+                // Upload to Cloudinary
+                const { uploadVideoToCloudinary } = await import('./cloudinary');
+                const cloudinaryUrl = await uploadVideoToCloudinary(veoVideoUrl);
+                
+                await storage.updateVideoHistoryStatus(videoId, userId, 'completed', cloudinaryUrl);
+                console.log(`[Bulk Queue Polling] Video ${videoId} completed successfully`);
+                completed = true;
+              }
+            } else if (operation.error) {
+              const errorMessage = `VEO generation failed: ${operation.error.message || JSON.stringify(operation.error).substring(0, 200)}`;
+              console.error(`[Bulk Queue Polling] Video ${videoId} failed:`, operation.error);
               await storage.updateVideoHistoryStatus(videoId, userId, 'failed', undefined, errorMessage);
               
               if (currentRotationToken) {
