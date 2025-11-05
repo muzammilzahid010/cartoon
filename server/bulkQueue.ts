@@ -244,7 +244,7 @@ async function startBackgroundPolling(
     try {
       let completed = false;
       let attempts = 0;
-      const maxAttempts = 120; // 4 minutes max
+      const maxAttempts = 900; // 30 minutes max (900 attempts * 2 seconds = 1800 seconds)
       const retryAttempt = 60; // 2 minutes
       let currentOperationName = operationName;
       let currentSceneId = sceneId;
