@@ -14,7 +14,8 @@ import {
   videoHistory,
   type Scene 
 } from "@shared/schema";
-import { generateScenes, generateScript } from "./gemini";
+import { generateScenes } from "./gemini";
+import { generateScript } from "./openai-script";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
 import { mergeVideosWithFalAI } from "./falai";
