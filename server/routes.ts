@@ -14,7 +14,7 @@ import {
   videoHistory,
   type Scene 
 } from "@shared/schema";
-import { generateScenes } from "./gemini";
+import { generateScenes, generateScript } from "./gemini";
 import { generateVideoForScene, checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
 import { uploadVideoToCloudinary } from "./cloudinary";
 import { mergeVideosWithFalAI } from "./falai";
@@ -656,6 +656,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in /api/generate-scenes:", error);
       res.status(500).json({ 
         error: "Failed to generate scenes",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Script creator endpoint
+  app.post("/api/generate-script", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        storyAbout: z.string().min(5, "Story description must be at least 5 characters"),
+        numberOfPrompts: z.number().min(1).max(100),
+        finalStep: z.string().min(5, "Final step must be at least 5 characters")
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { storyAbout, numberOfPrompts, finalStep } = validationResult.data;
+
+      // Generate script using Gemini AI
+      const script = await generateScript(storyAbout, numberOfPrompts, finalStep);
+
+      res.json({ script });
+    } catch (error) {
+      console.error("Error in /api/generate-script:", error);
+      res.status(500).json({ 
+        error: "Failed to generate script",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

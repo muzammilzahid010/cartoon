@@ -143,3 +143,35 @@ export async function generateScenes(storyInput: StoryInput): Promise<Scene[]> {
   // All attempts failed
   throw new Error(`Failed to generate scenes after ${MAX_RETRY_ATTEMPTS} attempts: ${lastError?.message || 'Unknown error'}`);
 }
+
+/**
+ * Generate script/storyboard using user's custom prompt template
+ */
+export async function generateScript(
+  storyAbout: string,
+  numberOfPrompts: number,
+  finalStep: string
+): Promise<string> {
+  try {
+    const prompt = `Output only paragraphs, with no need to label steps or prompts. Write a storyboard for an animated film about a ${storyAbout}, consisting of ${numberOfPrompts} steps. Each step should include an English prompt. The final step should ${finalStep}. Describe the animated character fully in English at the beginning, and repeat that full character description in each prompt (do not use pronouns or shorthand such as "the same character"). The purpose is to reinforce the character's identity in every scene.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: "You are a creative screenwriter and storyboard artist. Generate detailed, vivid storyboards for animated films.",
+      },
+      contents: prompt,
+    });
+
+    const storyboard = response.text || "";
+
+    if (!storyboard) {
+      throw new Error("Empty response from Gemini");
+    }
+
+    return storyboard;
+  } catch (error) {
+    console.error("Script generation error:", error);
+    throw new Error(`Failed to generate script: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

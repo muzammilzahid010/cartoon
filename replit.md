@@ -30,8 +30,9 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 - **Design System**: Professional dark navy theme with purple accent buttons. Utilizes CSS gradients, icons, and animations (fadeIn, slideUp, scaleIn). Features glass-morphism effects, hover-lift interactions, and full mobile responsiveness. Supports light/dark modes with consistent navy palette.
 - **Multi-step Wizard**: Guides users through Story Input → Generation → Review/Export.
-- **Hero Section**: Dark navy gradient background with an icon badge, describing the "Complete Video Production Suite" and its tools: Cartoon Story Generator, VEO 3.1 Video Generator, Bulk Video Generator, and Video History & Projects.
+- **Hero Section**: Dark navy gradient background with an icon badge, describing the "Complete Video Production Suite" and its tools: Cartoon Story Generator, VEO 3.1 Video Generator, Bulk Video Generator, Script Creator, and Video History & Projects.
 - **Navigation**: Hamburger menu providing access to all tools in a logical order.
+- **Script Creator Page (`/script-creator`)**: Standalone tool using Gemini AI to generate detailed animated storyboards. Takes user inputs for story subject, number of steps, and final step description. Outputs complete storyboard with character descriptions repeated in each scene for AI video generation consistency.
 - **Video History Page (`/history`)**: Grid view of user-generated videos with status, metadata, and player. Includes today's generation statistics, original prompt display, and a regenerate button. Features multi-select for merging up to 19 completed videos using local FFmpeg processing, with a retry mechanism for failed merges.
 - **Admin Statistics Dashboard**: Displays daily video generation statistics and per-token analytics, showing total videos, completed, failed counts, and success rates for each API token.
 - **My Projects Page (`/projects`)**: Grid view of cartoon projects including title, date, scene/character count, and video generation status. Auto-saves projects after successful AI generation.
