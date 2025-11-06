@@ -116,6 +116,10 @@ app.use((req, res, next) => {
       if (currentHour === 0 && currentMinute === 0 && currentDate !== lastCleanupDate) {
         console.log(`[Daily Cleanup] Running cleanup tasks at midnight PKT (${currentDate})`);
         
+        // Reset daily video counts for all users
+        await storage.checkAndResetDailyCounts();
+        console.log('[Daily Cleanup] Daily video counts reset successfully');
+        
         // Cleanup video history
         await storage.clearAllVideoHistory();
         console.log('[Daily Cleanup] Video history cleared successfully');

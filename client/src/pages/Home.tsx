@@ -4,13 +4,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video, ImageIcon, FileVideo } from "lucide-react";
+import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video, ImageIcon, FileVideo, Crown, Calendar, TrendingUp } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 export default function Home() {
   const { toast } = useToast();
@@ -18,10 +20,63 @@ export default function Home() {
 
   const { data: session } = useQuery<{
     authenticated: boolean;
-    user?: { id: string; username: string; isAdmin: boolean };
+    user?: { 
+      id: string; 
+      username: string; 
+      isAdmin: boolean;
+      planType: string;
+      planStatus: string;
+      planExpiry: string | null;
+      dailyVideoCount: number;
+    };
   }>({
     queryKey: ["/api/session"],
   });
+
+  // Calculate plan details
+  const getPlanConfig = () => {
+    if (!session?.user) return null;
+    
+    const { planType, isAdmin } = session.user;
+    
+    if (isAdmin) {
+      return {
+        name: "Admin",
+        dailyLimit: Infinity,
+        color: "from-purple-500 to-pink-500",
+        badge: "Unlimited",
+      };
+    }
+
+    switch (planType) {
+      case "scale":
+        return {
+          name: "Scale Plan",
+          dailyLimit: 1000,
+          color: "from-blue-500 to-cyan-500",
+          badge: "900 PKR",
+        };
+      case "empire":
+        return {
+          name: "Empire Plan",
+          dailyLimit: 2000,
+          color: "from-orange-500 to-red-500",
+          badge: "1500 PKR",
+        };
+      default:
+        return {
+          name: "Free Plan",
+          dailyLimit: 0,
+          color: "from-gray-500 to-gray-600",
+          badge: "Free",
+        };
+    }
+  };
+
+  const planConfig = getPlanConfig();
+  const dailyUsagePercent = session?.user && planConfig && planConfig.dailyLimit > 0
+    ? (session.user.dailyVideoCount / planConfig.dailyLimit) * 100
+    : 0;
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -205,6 +260,67 @@ export default function Home() {
             Transform your ideas into stunning Disney Pixar-style 3D animated videos using cutting-edge AI technology
           </p>
         </div>
+
+        {/* Plan Information Card - Only show for authenticated users */}
+        {session?.authenticated && planConfig && (
+          <Card className="max-w-2xl mx-auto mb-8 bg-white/5 backdrop-blur-sm border-white/10 animate-slide-up">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg bg-gradient-to-br ${planConfig.color}`}>
+                    <Crown className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-white text-lg">{planConfig.name}</CardTitle>
+                    <CardDescription className="text-gray-300 text-sm">
+                      {session.user?.username}
+                    </CardDescription>
+                  </div>
+                </div>
+                <Badge className={`bg-gradient-to-br ${planConfig.color} text-white border-0`}>
+                  {planConfig.badge}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {session.user?.planExpiry && (
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <Calendar className="w-4 h-4" />
+                    <span>Expires:</span>
+                  </div>
+                  <span className="text-white font-medium">
+                    {new Date(session.user.planExpiry).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              
+              {planConfig.dailyLimit > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <TrendingUp className="w-4 h-4" />
+                      <span>Daily Usage:</span>
+                    </div>
+                    <span className="text-white font-medium">
+                      {session.user?.dailyVideoCount || 0} / {planConfig.dailyLimit}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={dailyUsagePercent} 
+                    className="h-2 bg-white/10"
+                  />
+                  {dailyUsagePercent >= 90 && (
+                    <p className="text-xs text-orange-300 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      You're close to your daily limit!
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tools Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">

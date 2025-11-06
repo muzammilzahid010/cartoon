@@ -22,6 +22,12 @@ import { desc } from "drizzle-orm";
 import path from "path";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
+import { 
+  canGenerateVideo, 
+  canBulkGenerate, 
+  canAccessTool, 
+  getBatchConfig 
+} from "./planEnforcement";
 
 // Cache to store Cloudinary URL promises by sceneId to avoid re-uploading
 // Using promises allows concurrent requests to await the same upload
@@ -133,9 +139,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       user: { 
         id: user.id, 
         username: user.username, 
-        isAdmin: user.isAdmin 
+        isAdmin: user.isAdmin,
+        planType: user.planType,
+        planStatus: user.planStatus,
+        planExpiry: user.planExpiry,
+        dailyVideoCount: user.dailyVideoCount,
       } 
     });
+  });
+
+  // Get current user details endpoint (requires auth)
+  app.get("/api/user/me", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        isAdmin: user.isAdmin,
+        planType: user.planType,
+        planStatus: user.planStatus,
+        planExpiry: user.planExpiry,
+        planStartDate: user.planStartDate,
+        dailyVideoCount: user.dailyVideoCount,
+        dailyResetDate: user.dailyResetDate,
+      });
+    } catch (error) {
+      console.error("Error in GET /api/user/me:", error);
+      res.status(500).json({ error: "Failed to fetch user details" });
+    }
   });
 
   // Get all users endpoint (admin only)
@@ -267,6 +303,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in PATCH /api/users/:id/token:", error);
       res.status(500).json({ error: "Failed to update user API token" });
+    }
+  });
+
+  // Delete user endpoint (admin only)
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Prevent admin from deleting themselves
+      if (id === req.session.userId) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      
+      await storage.deleteUser(id);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error in DELETE /api/users/:id:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Remove user plan endpoint (admin only)
+  app.delete("/api/users/:id/plan", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const updatedUser = await storage.removePlan(id);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ 
+        success: true,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          isAdmin: updatedUser.isAdmin,
+          planType: updatedUser.planType,
+          planStatus: updatedUser.planStatus,
+          planExpiry: updatedUser.planExpiry,
+          apiToken: updatedUser.apiToken,
+        }
+      });
+    } catch (error) {
+      console.error("Error in DELETE /api/users/:id/plan:", error);
+      res.status(500).json({ error: "Failed to remove user plan" });
     }
   });
 
@@ -446,6 +530,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Get user and check plan restrictions
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can generate video (plan expiry and daily limit)
+      const videoCheck = canGenerateVideo(user);
+      if (!videoCheck.allowed) {
+        return res.status(403).json({ error: videoCheck.reason });
+      }
+
       const schema = z.object({
         prompt: z.string().min(10, "Prompt must be at least 10 characters"),
         aspectRatio: z.enum(["landscape", "portrait"]),
@@ -469,6 +565,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...validationResult.data
       });
 
+      // Increment daily video count for non-failed videos
+      if (validationResult.data.status !== "failed") {
+        await storage.incrementDailyVideoCount(userId);
+      }
+
       res.json({ video });
     } catch (error) {
       console.error("Error saving video history:", error);
@@ -487,6 +588,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Get user and check plan restrictions
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
       const schema = z.object({
         prompts: z.array(z.string().min(10, "Each prompt must be at least 10 characters")).min(1).max(100),
         aspectRatio: z.enum(["landscape", "portrait"]),
@@ -502,9 +609,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { prompts, aspectRatio } = validationResult.data;
+
+      // Check if user can perform bulk generation with this batch size
+      const bulkCheck = canBulkGenerate(user, prompts.length);
+      if (!bulkCheck.allowed) {
+        return res.status(403).json({ error: bulkCheck.reason });
+      }
+
+      // Get batch configuration for user's plan
+      const batchConfig = getBatchConfig(user);
+      
       const { addToQueue } = await import('./bulkQueue');
       
-      console.log(`[Bulk Generate] Starting bulk generation for ${prompts.length} videos`);
+      console.log(`[Bulk Generate] Starting bulk generation for ${prompts.length} videos (User: ${user.username}, Plan: ${user.planType})`);
 
       // Create all video history entries immediately
       const videoIds: string[] = [];
@@ -530,10 +647,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Add all videos to the background queue
-      addToQueue(queuedVideos);
+      // Increment daily video count for all videos
+      for (let i = 0; i < prompts.length; i++) {
+        await storage.incrementDailyVideoCount(userId);
+      }
 
-      console.log(`[Bulk Generate] Created ${videoIds.length} videos and added to queue`);
+      // Add all videos to the background queue with plan-specific delay
+      addToQueue(queuedVideos, batchConfig.delaySeconds);
+
+      console.log(`[Bulk Generate] Created ${videoIds.length} videos and added to queue with ${batchConfig.delaySeconds}s delay`);
 
       res.json({ 
         success: true,
@@ -591,8 +713,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Script creator endpoint
-  app.post("/api/generate-script", async (req, res) => {
+  app.post("/api/generate-script", requireAuth, async (req, res) => {
     try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get user and check plan restrictions
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can access script creator
+      const toolCheck = canAccessTool(user, "script");
+      if (!toolCheck.allowed) {
+        return res.status(403).json({ error: toolCheck.reason });
+      }
+
       const schema = z.object({
         storyAbout: z.string().min(5, "Story description must be at least 5 characters"),
         numberOfPrompts: z.number().min(1).max(39),
@@ -610,6 +749,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { storyAbout, numberOfPrompts, finalStep } = validationResult.data;
 
+      console.log(`[Script Generator] User: ${user.username}, Plan: ${user.planType}`);
+
       // Generate script using OpenAI GPT-5
       const script = await generateScript(storyAbout, numberOfPrompts, finalStep);
 
@@ -624,10 +765,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Text to Image endpoint - uses Google AI Sandbox Whisk API (IMAGEN_3_5)
-  app.post("/api/text-to-image", async (req, res) => {
+  app.post("/api/text-to-image", requireAuth, async (req, res) => {
     let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
     
     try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get user and check plan restrictions
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can access text-to-image tool
+      const toolCheck = canAccessTool(user, "textToImage");
+      if (!toolCheck.allowed) {
+        return res.status(403).json({ error: toolCheck.reason });
+      }
+
       const schema = z.object({
         prompt: z.string().min(3, "Prompt must be at least 3 characters"),
         aspectRatio: z.enum(["IMAGE_ASPECT_RATIO_LANDSCAPE", "IMAGE_ASPECT_RATIO_PORTRAIT", "IMAGE_ASPECT_RATIO_SQUARE"]).default("IMAGE_ASPECT_RATIO_LANDSCAPE")
@@ -644,7 +802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { prompt, aspectRatio } = validationResult.data;
 
-      console.log(`[Text to Image] Generating image - Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
+      console.log(`[Text to Image] User: ${user.username}, Plan: ${user.planType}, Generating image - Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
 
       // Get API key from token rotation system (same as VEO)
       let apiKey: string | undefined;
@@ -750,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate VEO video directly from prompt
-  app.post("/api/generate-veo-video", async (req, res) => {
+  app.post("/api/generate-veo-video", requireAuth, async (req, res) => {
     let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
     
     try {
@@ -770,7 +928,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { prompt, aspectRatio } = validationResult.data;
       
-      console.log(`[VEO Direct] Request received - Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
+      // Get user and check plan restrictions
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can access VEO tool
+      const toolCheck = canAccessTool(user, "veo");
+      if (!toolCheck.allowed) {
+        return res.status(403).json({ error: toolCheck.reason });
+      }
+
+      // Check if user can generate video (plan expiry and daily limit)
+      const videoCheck = canGenerateVideo(user);
+      if (!videoCheck.allowed) {
+        return res.status(403).json({ error: videoCheck.reason });
+      }
+      
+      console.log(`[VEO Direct] Request received - User: ${user.username}, Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
       
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
@@ -870,6 +1046,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      // Get user and check plan restrictions
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can access image-to-video tool
+      const toolCheck = canAccessTool(user, "imageToVideo");
+      if (!toolCheck.allowed) {
+        return res.status(403).json({ error: toolCheck.reason });
+      }
+
+      // Check if user can generate video (plan expiry and daily limit)
+      const videoCheck = canGenerateVideo(user);
+      if (!videoCheck.allowed) {
+        return res.status(403).json({ error: videoCheck.reason });
+      }
+
       const schema = z.object({
         imageBase64: z.string().min(100, "Image data required"),
         mimeType: z.string().default("image/jpeg"),
@@ -888,7 +1082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { imageBase64, mimeType, prompt, aspectRatio } = validationResult.data;
       
-      console.log(`[Image to Video] Request received - Aspect Ratio: ${aspectRatio}`);
+      console.log(`[Image to Video] User: ${user.username}, Plan: ${user.planType}, Request received - Aspect Ratio: ${aspectRatio}`);
       
       // Get API key from token rotation system
       rotationToken = await storage.getNextRotationToken();

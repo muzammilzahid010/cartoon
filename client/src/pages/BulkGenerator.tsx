@@ -6,9 +6,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
-import { Home, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Layers } from "lucide-react";
+import { Home, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Layers, Lock, Crown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { canAccessTool, getPlanConfig, getRemainingVideos } from "@/lib/planUtils";
 
 type AspectRatio = "landscape" | "portrait";
 
@@ -41,10 +43,24 @@ export default function BulkGenerator() {
 
   const { data: session, isLoading: sessionLoading } = useQuery<{
     authenticated: boolean;
-    user?: { id: string; username: string; isAdmin: boolean };
+    user?: { 
+      id: string; 
+      username: string; 
+      isAdmin: boolean;
+      planType: string;
+      planStatus: string;
+      planExpiry: string | null;
+      dailyVideoCount: number;
+    };
   }>({
     queryKey: ["/api/session"],
   });
+
+  // Check plan access
+  const user = session?.user;
+  const toolAccess = user ? canAccessTool(user, "bulk") : { allowed: false };
+  const planConfig = user ? getPlanConfig(user) : null;
+  const remainingVideos = user ? getRemainingVideos(user) : 0;
 
   // Load previous results from localStorage on mount and check for updates
   useEffect(() => {
@@ -344,12 +360,35 @@ export default function BulkGenerator() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
+              {/* Plan Restriction Alert */}
+              {user && !toolAccess.allowed && (
+                <Alert className="bg-red-500/10 border-red-500/50 text-red-300">
+                  <Lock className="h-4 w-4" />
+                  <AlertTitle>Access Restricted</AlertTitle>
+                  <AlertDescription>
+                    {toolAccess.reason}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Plan Info Banner */}
+              {user && toolAccess.allowed && planConfig && (
+                <Alert className="bg-blue-500/10 border-blue-500/50 text-blue-300">
+                  <Crown className="h-4 w-4" />
+                  <AlertTitle>{planConfig.name} Plan</AlertTitle>
+                  <AlertDescription>
+                    Max batch size: {planConfig.bulkGeneration.maxBatch} videos | 
+                    Daily limit: {remainingVideos}/{planConfig.dailyLimit} remaining
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label htmlFor="prompts" className="text-white font-semibold">
-                    Prompts ({promptCount}/100)
+                    Prompts ({promptCount}/{planConfig?.bulkGeneration.maxBatch || 100})
                   </Label>
-                  {promptCount > 0 && promptCount <= 100 && (
+                  {promptCount > 0 && promptCount <= (planConfig?.bulkGeneration.maxBatch || 100) && (
                     <span className="text-xs bg-green-600/30 border border-green-500/50 text-green-300 px-2 py-1 rounded-full">
                       ✓ Ready
                     </span>
@@ -361,13 +400,19 @@ export default function BulkGenerator() {
                   onChange={(e) => setPrompts(e.target.value)}
                   placeholder="A dog running on the beach&#10;A sunset over mountains&#10;A city street at night&#10;..."
                   className="min-h-[280px] md:min-h-[320px] transition-smooth focus:ring-2 focus:ring-purple-500 bg-[#242d3f]/50 border-white/10 text-white placeholder:text-gray-400 text-sm md:text-base"
-                  disabled={isGenerating}
+                  disabled={isGenerating || !toolAccess.allowed}
                   data-testid="input-bulk-prompts"
                 />
-                {promptCount > 100 && (
+                {promptCount > (planConfig?.bulkGeneration.maxBatch || 100) && (
                   <p className="text-sm text-red-300 mt-2 flex items-center gap-2 animate-slide-up">
                     <AlertCircle className="w-4 h-4" />
-                    Maximum 100 prompts allowed
+                    Maximum {planConfig?.bulkGeneration.maxBatch || 100} prompts allowed for your plan
+                  </p>
+                )}
+                {promptCount > remainingVideos && user && !user.isAdmin && (
+                  <p className="text-sm text-orange-300 mt-2 flex items-center gap-2 animate-slide-up">
+                    <AlertCircle className="w-4 h-4" />
+                    You only have {remainingVideos} videos remaining today
                   </p>
                 )}
               </div>
@@ -397,8 +442,14 @@ export default function BulkGenerator() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || promptCount === 0 || promptCount > 100}
-                className="w-full h-12 md:h-14 bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift text-base md:text-lg font-semibold border-0"
+                disabled={
+                  isGenerating || 
+                  !toolAccess.allowed || 
+                  promptCount === 0 || 
+                  promptCount > (planConfig?.bulkGeneration.maxBatch || 100) ||
+                  (user && !user.isAdmin && promptCount > remainingVideos)
+                }
+                className="w-full h-12 md:h-14 bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift text-base md:text-lg font-semibold border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="button-generate-bulk"
               >
                 {isGenerating ? (

@@ -23,17 +23,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw, TrendingUp, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Shield, LogOut, UserPlus, Home, Edit, Key, Calendar, RefreshCw, TrendingUp, CheckCircle, XCircle, Clock, AlertCircle, Trash2, XOctagon } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   isAdmin: z.boolean().default(false),
+  planType: z.enum(["free", "scale", "empire"]).default("free"),
 });
 
 const updatePlanSchema = z.object({
-  planType: z.enum(["free", "basic", "premium"]),
+  planType: z.enum(["free", "scale", "empire"]),
   planStatus: z.enum(["active", "expired", "cancelled"]),
   planExpiry: z.string().optional(),
 });
@@ -226,6 +228,7 @@ export default function Admin() {
       username: "",
       password: "",
       isAdmin: false,
+      planType: "free",
     },
   });
 
@@ -237,6 +240,9 @@ export default function Admin() {
       planExpiry: "",
     },
   });
+
+  const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
+  const [userToRemovePlan, setUserToRemovePlan] = useState<UserData | null>(null);
 
   const tokenForm = useForm<UpdateTokenFormData>({
     resolver: zodResolver(updateTokenSchema),
@@ -313,6 +319,51 @@ export default function Admin() {
       toast({
         variant: "destructive",
         title: "Failed to update plan",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/users/${userId}`, {});
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "User deleted successfully",
+      });
+      setUserToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete user",
+        description: error.message || "An error occurred",
+      });
+    },
+  });
+
+  const removePlanMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/users/${userId}/plan`, {});
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plan removed successfully",
+        description: "User has been reset to free plan",
+      });
+      setUserToRemovePlan(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to remove plan",
         description: error.message || "An error occurred",
       });
     },
@@ -793,6 +844,32 @@ export default function Admin() {
 
                   <FormField
                     control={createForm.control}
+                    name="planType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Initial Plan</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white" data-testid="select-create-plan-type">
+                              <SelectValue placeholder="Select plan type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                            <SelectItem value="free">Free</SelectItem>
+                            <SelectItem value="scale">Scale (900 PKR - 10 days)</SelectItem>
+                            <SelectItem value="empire">Empire (1500 PKR - 10 days)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-gray-600 dark:text-gray-400">
+                          Plan can be changed later
+                        </FormDescription>
+                        <FormMessage className="dark:text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createForm.control}
                     name="isAdmin"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-200 dark:border-gray-600 p-4 bg-gray-50 dark:bg-gray-700">
@@ -909,7 +986,7 @@ export default function Admin() {
                           {user.apiToken ? `${user.apiToken.slice(0, 20)}...` : "—"}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <Dialog open={editingUserId === user.id} onOpenChange={(open) => !open && setEditingUserId(null)}>
                               <DialogTrigger asChild>
                                 <Button
@@ -946,8 +1023,8 @@ export default function Admin() {
                                             </FormControl>
                                             <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                                               <SelectItem value="free">Free</SelectItem>
-                                              <SelectItem value="basic">Basic</SelectItem>
-                                              <SelectItem value="premium">Premium</SelectItem>
+                                              <SelectItem value="scale">Scale (900 PKR - 10 days)</SelectItem>
+                                              <SelectItem value="empire">Empire (1500 PKR - 10 days)</SelectItem>
                                             </SelectContent>
                                           </Select>
                                           <FormMessage className="dark:text-red-400" />
@@ -1069,6 +1146,72 @@ export default function Admin() {
                                 </Form>
                               </DialogContent>
                             </Dialog>
+
+                            {user.planType !== "free" && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    data-testid={`button-remove-plan-${user.id}`}
+                                    className="dark:border-orange-600 dark:text-orange-300 border-orange-500 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                  >
+                                    <XOctagon className="w-3 h-3 mr-1" />
+                                    Remove
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-gray-900 dark:text-white">Remove Plan</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-gray-600 dark:text-gray-400">
+                                      Are you sure you want to remove {user.username}'s plan? This will reset them to the free plan and clear their daily video count.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="dark:bg-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => removePlanMutation.mutate(user.id)}
+                                      className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700"
+                                      data-testid={`button-confirm-remove-plan-${user.id}`}
+                                    >
+                                      Remove Plan
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  data-testid={`button-delete-user-${user.id}`}
+                                  className="dark:border-red-600 dark:text-red-300 border-red-500 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-gray-900 dark:text-white">Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-gray-600 dark:text-gray-400">
+                                    Are you sure you want to delete {user.username}? This action cannot be undone. All video history will be permanently deleted.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="dark:bg-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteUserMutation.mutate(user.id)}
+                                    className="bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                                    data-testid={`button-confirm-delete-${user.id}`}
+                                  >
+                                    Delete User
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>
