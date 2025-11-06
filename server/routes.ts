@@ -14,7 +14,7 @@ import {
 } from "@shared/schema";
 import { generateScript } from "./openai-script";
 import { checkVideoStatus, waitForVideoCompletion, waitForVideoCompletionWithUpdates } from "./veo3";
-import { uploadVideoToCloudinary } from "./cloudinary";
+import { uploadVideoToCloudinary, uploadImageToCloudinary } from "./cloudinary";
 import { mergeVideosWithFalAI } from "./falai";
 import { z } from "zod";
 import { desc } from "drizzle-orm";
@@ -698,34 +698,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await response.json();
       
-      console.log(`[Text to Image] Received response from Google AI:`, JSON.stringify(result, null, 2));
+      console.log(`[Text to Image] Received response from Google AI`);
 
-      // Extract image data from response
-      // Google AI Whisk API returns base64 encoded images
-      let imageUrl: string;
-      
-      // Check for base64 image data
+      // Extract base64 image data from response
       const base64Image = result.image?.base64 || result.base64 || result.imageData || result.data;
       
-      if (base64Image) {
-        // Convert base64 to data URL for browser display
-        const mimeType = result.image?.mimeType || result.mimeType || 'image/png';
-        imageUrl = `data:${mimeType};base64,${base64Image}`;
-        console.log(`[Text to Image] Converted base64 image to data URL (${mimeType})`);
-      } else {
-        // Fallback: check for direct URL
-        imageUrl = result.imageUrl || result.image?.url || result.url || result.generatedImage || result.output;
-        
-        if (!imageUrl) {
-          console.error('[Text to Image] No image data in response:', result);
-          throw new Error("No image data received from Google AI API");
-        }
-        
-        console.log(`[Text to Image] Using direct image URL`);
+      if (!base64Image) {
+        console.error('[Text to Image] No base64 image data in response:', result);
+        throw new Error("No image data received from Google AI API");
       }
 
+      // Determine file extension from mime type
+      const mimeType = result.image?.mimeType || result.mimeType || 'image/png';
+      const extension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+      
+      console.log(`[Text to Image] Uploading ${extension} image to Cloudinary...`);
+
+      // Upload base64 image to Cloudinary
+      const cloudinaryUrl = await uploadImageToCloudinary(base64Image, extension);
+
       res.json({ 
-        imageUrl,
+        imageUrl: cloudinaryUrl,
         prompt,
         aspectRatio,
         tokenUsed: rotationToken?.label,

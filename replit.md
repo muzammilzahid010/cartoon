@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **VEO Generator & Bulk Generator Pages**: Professional card designs with gradient icon badges, enhanced input fields, and mobile responsiveness. The Bulk Generator supports up to 100 videos per batch and displays token labels for real-time processing visibility.
 
 ### Technical Implementations
-- **AI Integration**: OpenAI GPT-5 for script generation with automatic retry logic. Google AI Sandbox Whisk API (IMAGEN_3_5) for text-to-image generation with configurable aspect ratios and automatic token rotation from admin panel.
+- **AI Integration**: OpenAI GPT-5 for script generation with automatic retry logic. Google AI Sandbox Whisk API (IMAGEN_3_5) for text-to-image generation with configurable aspect ratios, base64-to-file conversion, Cloudinary upload, and automatic token rotation from admin panel.
 - **Video Generation**: VEO 3.1 API, with prompts prefixed for "Disney Pixar-style 3D animation." Supports both landscape (16:9) and portrait (9:16) video formats. Uses sequential processing with Server-Sent Events (SSE) for progress, automatic prompt cleaning, and individual/bulk retry mechanisms with concurrency control. Features per-scene token rotation to distribute load.
 - **Video Regeneration**: Background polling with a 4-minute timeout. Smart token rotation attempts different API tokens if videos don't complete within 2 minutes.
 - **Bulk Generation**: Backend queue system with configurable batch processing (1-50 videos per batch, 10-120 second delays). Maximum 100 prompts per bulk generation. Uses round-robin token rotation for videos. Processing continues in the background even if the user leaves the page.
