@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
-import { Home, Loader2, Download, PlayCircle } from "lucide-react";
+import { Home, Loader2, Download, PlayCircle, RotateCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 type AspectRatio = "landscape" | "portrait";
@@ -304,14 +304,25 @@ export default function VeoGenerator() {
                     data-testid="video-result"
                   />
                 </div>
-                <Button
-                  onClick={handleDownload}
-                  className="w-full h-12 text-base font-semibold bg-purple-600 hover:bg-purple-700 border-0"
-                  data-testid="button-download"
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  Download Video
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="w-full h-12 text-base font-semibold bg-green-600 hover:bg-green-700 border-0"
+                    data-testid="button-regenerate"
+                  >
+                    <RotateCw className="w-5 h-5 mr-2" />
+                    Regenerate
+                  </Button>
+                  <Button
+                    onClick={handleDownload}
+                    className="w-full h-12 text-base font-semibold bg-purple-600 hover:bg-purple-700 border-0"
+                    data-testid="button-download"
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download
+                  </Button>
+                </div>
               </div>
             )}
 
