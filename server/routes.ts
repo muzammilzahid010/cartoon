@@ -964,10 +964,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             imageUsageType: "IMAGE_USAGE_TYPE_ASSET",
             mediaId: mediaGenId
           }],
-          seed: seed,
           textInput: {
             prompt: prompt
-          }
+          },
+          videoModelKey: "veo_3_0_r2v_fast_ultra" // Required for reference-to-video generation
         }]
       };
 
