@@ -337,7 +337,7 @@ export default function BulkGenerator() {
               Bulk Video Generator
             </h1>
             <p className="text-gray-300 text-base md:text-lg">
-              Generate multiple videos at once with smart API token rotation
+              Generate multiple videos at once
             </p>
           </div>
           <Link href="/">
