@@ -859,6 +859,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate VEO video from image + prompt (Image to Video)
+  app.post("/api/generate-image-to-video", requireAuth, async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        imageBase64: z.string().min(100, "Image data required"),
+        mimeType: z.string().default("image/jpeg"),
+        prompt: z.string().min(10, "Prompt must be at least 10 characters"),
+        aspectRatio: z.enum(["landscape", "portrait"]).default("landscape")
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { imageBase64, mimeType, prompt, aspectRatio } = validationResult.data;
+      
+      console.log(`[Image to Video] Request received - Aspect Ratio: ${aspectRatio}`);
+      
+      // Get API key from token rotation system
+      rotationToken = await storage.getNextRotationToken();
+      
+      if (!rotationToken) {
+        return res.status(500).json({ 
+          error: "No API tokens configured. Please add tokens in the admin panel." 
+        });
+      }
+
+      const apiKey = rotationToken.token;
+      console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+      await storage.updateTokenUsage(rotationToken.id);
+
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
+      const sceneId = `img-to-vid-${Date.now()}`;
+      const seed = Math.floor(Math.random() * 100000);
+
+      // Step 1: Upload image to Google AI
+      console.log(`[Image to Video] Step 1: Uploading image to Google AI...`);
+      const uploadPayload = {
+        imageInput: {
+          rawImageBytes: imageBase64,
+          mimeType: mimeType
+        }
+      };
+
+      const uploadResponse = await fetch('https://aisandbox-pa.googleapis.com/v1:uploadUserImage', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(uploadPayload),
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error(`[Image to Video] Image upload failed: ${errorText}`);
+        throw new Error(`Image upload failed: ${uploadResponse.statusText}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      // Google returns nested structure: { mediaGenerationId: { mediaGenerationId: "actual-id" } }
+      const mediaGenId = uploadData.mediaGenerationId?.mediaGenerationId || uploadData.mediaGenerationId;
+
+      if (!mediaGenId) {
+        console.error(`[Image to Video] Invalid upload response:`, uploadData);
+        throw new Error('No media generation ID returned from image upload');
+      }
+
+      console.log(`[Image to Video] Image uploaded successfully. Media ID: ${mediaGenId}`);
+
+      // Upload the reference image to Cloudinary for storage
+      console.log(`[Image to Video] Uploading reference image to Cloudinary...`);
+      const referenceImageUrl = await uploadImageToCloudinary(imageBase64, mimeType.includes('jpeg') ? 'jpg' : 'png');
+
+      // Step 2: Generate video with reference image
+      console.log(`[Image to Video] Step 2: Generating video with reference image...`);
+      const videoPayload = {
+        clientContext: {
+          projectId: veoProjectId,
+          tool: "PINHOLE",
+          userPaygateTier: "PAYGATE_TIER_TWO"
+        },
+        requests: [{
+          aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+          metadata: {
+            sceneId: sceneId
+          },
+          referenceImages: [{
+            imageUsageType: "IMAGE_USAGE_TYPE_ASSET",
+            mediaId: mediaGenId
+          }],
+          seed: seed,
+          textInput: {
+            prompt: prompt
+          }
+        }]
+      };
+
+      console.log(`[Image to Video] Payload:`, JSON.stringify(videoPayload, null, 2));
+
+      const videoResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoReferenceImages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(videoPayload),
+      });
+
+      if (!videoResponse.ok) {
+        const errorText = await videoResponse.text();
+        console.error(`[Image to Video] Video generation failed: ${errorText}`);
+        throw new Error(`Video generation failed: ${videoResponse.statusText}`);
+      }
+
+      const videoData = await videoResponse.json();
+      const operationName = videoData.operations?.[0]?.operation?.name;
+
+      if (!operationName) {
+        throw new Error('No operation name returned from VEO API');
+      }
+
+      console.log(`[Image to Video] Video generation started. Operation: ${operationName}`);
+
+      // Create video history entry
+      const historyEntry = await storage.addVideoHistory({
+        userId,
+        prompt,
+        aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+        status: 'pending',
+        title: `Image to Video ${aspectRatio}`,
+        tokenUsed: rotationToken?.id,
+        referenceImageUrl: referenceImageUrl, // Store Cloudinary URL
+      });
+
+      res.json({
+        operationName,
+        sceneId,
+        status: "PENDING",
+        tokenId: rotationToken?.id || null,
+        historyId: historyEntry.id
+      });
+    } catch (error) {
+      console.error("Error in /api/generate-image-to-video:", error);
+      
+      // Record token error if we used a rotation token
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
+      res.status(500).json({ 
+        error: "Failed to start video generation from image",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Regenerate a failed video from history
   app.post("/api/regenerate-video", requireAuth, async (req, res) => {
     let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;

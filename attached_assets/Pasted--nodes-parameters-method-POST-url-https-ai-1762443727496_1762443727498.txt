@@ -1,0 +1,115 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoReferenceImages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"clientContext\":{\"projectId\":\"09fc0253-6769-42fe-9984-134f2257cf8c\",\"tool\":\"PINHOLE\",\"userPaygateTier\":\"PAYGATE_TIER_TWO\"},\"requests\":[{\"aspectRatio\":\"VIDEO_ASPECT_RATIO_LANDSCAPE\",\"metadata\":{\"sceneId\":\"1425cf21-9fc4-42a6-9b4c-7c11a1675311\"},\"referenceImages\":[{\"imageUsageType\":\"IMAGE_USAGE_TYPE_ASSET\",\"mediaId\":\"{{ $json.mediaGenerationId.mediaGenerationId }}\"}],\"seed\":21578,\"textInput\":{\"prompt\":\"doremon sitting in a room\"},\"videoModelKey\":\"veo_3_0_r2v_fast_ultra\"}]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1552,
+        80
+      ],
+      "id": "c553e6c0-f91d-4374-94d5-3e1932607116",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tlbIUzYT44R4nimK",
+          "name": "flow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://aisandbox-pa.googleapis.com/v1:uploadUserImage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"imageInput\": {\n    \"rawImageBytes\": \"{{ $json.data }}\",\n    \"mimeType\": \"{{ $('On form submission').item.json.image[0].mimetype }}\" \n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1184,
+        80
+      ],
+      "id": "cc5d42e8-0012-4da2-baa4-cdbca5381654",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tlbIUzYT44R4nimK",
+          "name": "flow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"operations\":[{\"operation\":{\"name\":\"{{ $json.operations[0].operation.name }}\"},\"sceneId\":\"{{ $json.operations[0].sceneId }}\",\"status\":\"MEDIA_GENERATION_STATUS_PENDING\"}]} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        80
+      ],
+      "id": "ce1ca91f-101c-4a3b-941d-3481900c5019",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tlbIUzYT44R4nimK",
+          "name": "flow"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "2048f481a7571a30838c88edf33405c5265724d64334d416ad13ea9b4592638d"
+  }
+}

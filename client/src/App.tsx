@@ -11,6 +11,7 @@ import BulkGenerator from "@/pages/BulkGenerator";
 import ScriptCreator from "@/pages/ScriptCreator";
 import History from "@/pages/History";
 import TextToImage from "@/pages/TextToImage";
+import ImageToVideo from "@/pages/ImageToVideo";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/script-creator" component={ScriptCreator} />
       <Route path="/history" component={History} />
       <Route path="/text-to-image" component={TextToImage} />
+      <Route path="/image-to-video" component={ImageToVideo} />
       <Route component={NotFound} />
     </Switch>
   );

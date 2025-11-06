@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video, ImageIcon } from "lucide-react";
+import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video, ImageIcon, FileVideo } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +61,14 @@ export default function Home() {
       href: "/text-to-image",
       gradient: "from-pink-500 to-rose-500",
       testId: "link-text-to-image"
+    },
+    {
+      title: "Image to Video",
+      description: "Transform static images into dynamic videos with AI",
+      icon: FileVideo,
+      href: "/image-to-video",
+      gradient: "from-indigo-500 to-purple-500",
+      testId: "link-image-to-video"
     },
     {
       title: "Script Creator",
