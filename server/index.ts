@@ -175,13 +175,13 @@ app.use((req, res, next) => {
         UPDATE video_history 
         SET status = 'failed' 
         WHERE status = 'pending' 
-        AND (NOW() - created_at::timestamp) > INTERVAL '30 minutes'
+        AND (NOW() - updated_at::timestamp) > INTERVAL '4 minutes'
         RETURNING id
       `);
       
       const count = result.rowCount || 0;
       if (count > 0) {
-        console.log(`[Timeout Cleanup] Marked ${count} stuck videos as failed (pending > 30 minutes)`);
+        console.log(`[Timeout Cleanup] Marked ${count} stuck videos as failed (pending > 4 minutes since last update)`);
       }
     } catch (error) {
       console.error('[Timeout Cleanup] Error timing out pending videos:', error);
