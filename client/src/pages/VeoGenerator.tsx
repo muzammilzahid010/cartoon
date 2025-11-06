@@ -121,10 +121,10 @@ export default function VeoGenerator() {
       // Poll for video status
       let completed = false;
       let attempts = 0;
-      const maxAttempts = 120; // 4 minutes max (2 second intervals)
+      const maxAttempts = 16; // 4 minutes max (15 second intervals)
 
       while (!completed && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 15000));
         attempts++;
 
         const statusResponse = await fetch('/api/check-video-status', {
