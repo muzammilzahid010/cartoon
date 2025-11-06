@@ -237,7 +237,7 @@ export default function BulkGenerator() {
     // Start polling for status updates (runs in background)
     const historyEntryIds = historyEntryIdsRef.current;
     let pollingAttempts = 0;
-    const maxPollingAttempts = 600; // Poll for up to 20 minutes (600 * 2 sec)
+    const maxPollingAttempts = 80; // Poll for up to 20 minutes (80 * 15 sec)
     
     pollingIntervalRef.current = setInterval(async () => {
       pollingAttempts++;
@@ -293,7 +293,7 @@ export default function BulkGenerator() {
       } catch (error) {
         console.error('Error polling history:', error);
       }
-    }, 2000);
+    }, 15000);
   };
 
   const promptCount = prompts.split('\n').filter(line => line.trim().length > 0).length;

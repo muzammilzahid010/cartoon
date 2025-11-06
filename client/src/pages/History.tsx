@@ -27,7 +27,7 @@ export default function History() {
     queryKey: ["/api/video-history"],
     enabled: session?.authenticated === true,
     refetchInterval: (query) => {
-      // Auto-refresh every 3 seconds if there are pending or queued videos
+      // Auto-refresh every 15 seconds if there are pending or queued videos
       const videos = query.state.data?.videos;
       if (!videos) return false;
       
@@ -35,7 +35,7 @@ export default function History() {
         video => video.status === 'pending' || video.status === 'queued'
       );
       
-      return hasProcessingVideos ? 3000 : false;
+      return hasProcessingVideos ? 15000 : false;
     },
   });
 
