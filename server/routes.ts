@@ -701,11 +701,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[Text to Image] Received response from Google AI`);
 
       // Extract base64 image data from response
-      // Google AI returns the base64 string in the 'encodedImage' field
-      const base64Image = result.encodedImage || result.image?.base64 || result.base64 || result.imageData || result.data;
+      // Google AI returns nested structure: imagePanels[0].generatedImages[0].encodedImage
+      let base64Image: string | undefined;
+      
+      if (result.imagePanels && result.imagePanels.length > 0) {
+        const firstPanel = result.imagePanels[0];
+        if (firstPanel.generatedImages && firstPanel.generatedImages.length > 0) {
+          const firstImage = firstPanel.generatedImages[0];
+          base64Image = firstImage.encodedImage || firstImage.image;
+          console.log(`[Text to Image] Extracted image from imagePanels structure`);
+        }
+      }
+      
+      // Fallback to other possible fields
+      if (!base64Image) {
+        base64Image = result.encodedImage || result.image?.base64 || result.base64 || result.imageData || result.data;
+      }
       
       if (!base64Image) {
-        console.error('[Text to Image] No base64 image data in response:', result);
+        console.error('[Text to Image] No base64 image data in response:', JSON.stringify(result, null, 2));
         throw new Error("No image data received from Google AI API");
       }
 
