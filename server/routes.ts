@@ -931,6 +931,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uploadData = await uploadResponse.json();
+      console.log(`[Image to Video] Upload response:`, JSON.stringify(uploadData, null, 2));
+      
       // Google returns nested structure: { mediaGenerationId: { mediaGenerationId: "actual-id" } }
       const mediaGenId = uploadData.mediaGenerationId?.mediaGenerationId || uploadData.mediaGenerationId;
 
@@ -982,8 +984,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!videoResponse.ok) {
         const errorText = await videoResponse.text();
-        console.error(`[Image to Video] Video generation failed: ${errorText}`);
-        throw new Error(`Video generation failed: ${videoResponse.statusText}`);
+        console.error(`[Image to Video] Video generation failed (${videoResponse.status}): ${errorText}`);
+        console.error(`[Image to Video] Failed payload was:`, JSON.stringify(videoPayload, null, 2));
+        throw new Error(`Video generation failed: ${videoResponse.statusText} - ${errorText}`);
       }
 
       const videoData = await videoResponse.json();
