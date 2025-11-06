@@ -700,13 +700,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[Text to Image] Received response from Google AI:`, JSON.stringify(result, null, 2));
 
-      // Extract image URL from response
-      // Adjust based on actual Google AI response structure
-      const imageUrl = result.imageUrl || result.image?.url || result.url || result.generatedImage || result.output;
-
-      if (!imageUrl) {
-        console.error('[Text to Image] No image URL in response:', result);
-        throw new Error("No image URL received from Google AI API");
+      // Extract image data from response
+      // Google AI Whisk API returns base64 encoded images
+      let imageUrl: string;
+      
+      // Check for base64 image data
+      const base64Image = result.image?.base64 || result.base64 || result.imageData || result.data;
+      
+      if (base64Image) {
+        // Convert base64 to data URL for browser display
+        const mimeType = result.image?.mimeType || result.mimeType || 'image/png';
+        imageUrl = `data:${mimeType};base64,${base64Image}`;
+        console.log(`[Text to Image] Converted base64 image to data URL (${mimeType})`);
+      } else {
+        // Fallback: check for direct URL
+        imageUrl = result.imageUrl || result.image?.url || result.url || result.generatedImage || result.output;
+        
+        if (!imageUrl) {
+          console.error('[Text to Image] No image data in response:', result);
+          throw new Error("No image data received from Google AI API");
+        }
+        
+        console.log(`[Text to Image] Using direct image URL`);
       }
 
       res.json({ 
