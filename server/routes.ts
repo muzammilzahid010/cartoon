@@ -643,6 +643,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { prompt, aspectRatio } = validationResult.data;
       
+      console.log(`[VEO Direct] Request received - Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
+      
       // Get API key from token rotation system or fallback to environment variable
       let apiKey: string | undefined;
       rotationToken = await storage.getNextRotationToken();
@@ -687,6 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log(`[VEO Direct] Generating ${aspectRatio} video with prompt:`, prompt);
+      console.log(`[VEO Direct] Payload:`, JSON.stringify(payload, null, 2));
 
       const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
         method: 'POST',
