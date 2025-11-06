@@ -3,28 +3,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { Home, Download, Calendar, Film, Loader2, RefreshCw, Merge, Play, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Home, Download, Calendar, Film, Loader2, RefreshCw, Merge, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { VideoHistory } from "@shared/schema";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
-
-interface GroupedVideo {
-  project?: {
-    id: string;
-    title: string;
-    characters: any[];
-    mergedVideoUrl?: string;
-  };
-  videos: VideoHistory[];
-}
 
 export default function History() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [mergingProject, setMergingProject] = useState<string | null>(null);
-  const [mergedVideoUrls, setMergedVideoUrls] = useState<Record<string, string>>({});
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const [isMergingSelected, setIsMergingSelected] = useState(false);
 
@@ -37,7 +23,6 @@ export default function History() {
 
   const { data, isLoading, refetch } = useQuery<{ 
     videos: VideoHistory[]; 
-    grouped: Record<string, GroupedVideo>;
   }>({
     queryKey: ["/api/video-history"],
     enabled: session?.authenticated === true,
@@ -55,13 +40,11 @@ export default function History() {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: async ({ prompt, sceneNumber, videoId, projectId }: { 
+    mutationFn: async ({ prompt, sceneNumber, videoId }: { 
       prompt: string; 
       sceneNumber: number;
       videoId: string;
-      projectId?: string;
     }) => {
-      // Use the dedicated regenerate endpoint
       const response = await fetch('/api/regenerate-video', {
         method: 'POST',
         headers: {
@@ -72,7 +55,6 @@ export default function History() {
           videoId,
           prompt,
           aspectRatio: "landscape",
-          projectId,
           sceneNumber
         }),
       });
@@ -133,7 +115,6 @@ export default function History() {
     },
   });
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!sessionLoading && session && !session.authenticated) {
       toast({
@@ -150,7 +131,6 @@ export default function History() {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
-  // Calculate today's statistics
   const getTodayStats = () => {
     if (!data?.videos) return { total: 0, completed: 0, failed: 0, pending: 0, queued: 0 };
     
@@ -220,7 +200,6 @@ export default function History() {
     try {
       setIsMergingSelected(true);
 
-      // Send video IDs (not URLs) for security - backend will verify ownership
       const videoIds = Array.from(selectedVideos);
 
       const response = await fetch('/api/merge-selected-videos', {
@@ -229,9 +208,7 @@ export default function History() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          videoIds: videoIds,
-        }),
+        body: JSON.stringify({ videoIds }),
       });
 
       if (!response.ok) {
@@ -246,10 +223,8 @@ export default function History() {
         description: `${selectedVideos.size} videos have been merged.`,
       });
 
-      // Clear selection
       setSelectedVideos(new Set());
 
-      // Show the merged video in a new window or download
       if (result.mergedVideoUrl) {
         window.open(result.mergedVideoUrl, '_blank');
       }
@@ -267,79 +242,7 @@ export default function History() {
     }
   };
 
-  const handleMergeVideos = async (projectKey: string, videos: VideoHistory[], projectId?: string) => {
-    try {
-      const completedVideos = videos.filter(v => v.status === 'completed' && v.videoUrl);
-      
-      if (completedVideos.length < 2) {
-        toast({
-          title: "Cannot Merge",
-          description: "You need at least 2 completed videos to merge.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setMergingProject(projectKey);
-
-      // Sort by scene number (extract from title)
-      const sortedVideos = completedVideos.sort((a, b) => {
-        const aNum = parseInt(a.title?.match(/Scene (\d+)/)?.[1] || '0');
-        const bNum = parseInt(b.title?.match(/Scene (\d+)/)?.[1] || '0');
-        return aNum - bNum;
-      });
-
-      const payload: any = {
-        videos: sortedVideos.map((v, idx) => ({
-          sceneNumber: idx + 1,
-          videoUrl: v.videoUrl!
-        }))
-      };
-
-      if (projectId) {
-        payload.projectId = projectId;
-      }
-
-      const response = await fetch('/api/merge-videos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to merge videos');
-      }
-
-      const result = await response.json();
-      
-      setMergedVideoUrls(prev => ({
-        ...prev,
-        [projectKey]: result.mergedVideoUrl
-      }));
-
-      toast({
-        title: "Videos Merged!",
-        description: "All videos have been successfully merged into one.",
-      });
-
-      refetch();
-    } catch (error) {
-      console.error("Error merging videos:", error);
-      toast({
-        title: "Merge Failed",
-        description: error instanceof Error ? error.message : "Failed to merge videos.",
-        variant: "destructive",
-      });
-    } finally {
-      setMergingProject(null);
-    }
-  };
-
-  const renderVideoCard = (video: VideoHistory, showRegenerateButton = false) => {
+  const renderVideoCard = (video: VideoHistory) => {
     const isSelected = selectedVideos.has(video.id);
     const isCompleted = video.status === 'completed';
     
@@ -387,7 +290,6 @@ export default function History() {
           </span>
         </p>
 
-        {/* Display the original prompt */}
         {video.prompt && (
           <div className="bg-white/5 border border-white/10 rounded-lg p-2 sm:p-3">
             <p className="text-xs text-gray-300 font-medium mb-1">Prompt:</p>
@@ -419,13 +321,11 @@ export default function History() {
           </>
         )}
 
-        {/* Check if this is a merged video (has metadata with mergedVideoIds) */}
         {(() => {
           try {
             const metadata = video.metadata ? JSON.parse(video.metadata) : null;
             const isMergedVideo = metadata?.mergedVideoIds && Array.isArray(metadata.mergedVideoIds);
             
-            // Show retry button for failed merged videos
             if (isMergedVideo && video.status === 'failed') {
               return (
                 <Button
@@ -442,8 +342,7 @@ export default function History() {
               );
             }
             
-            // Show regenerate button for regular videos when enabled
-            if (showRegenerateButton && !isMergedVideo) {
+            if (!isMergedVideo && video.status === 'failed') {
               return (
                 <Button
                   onClick={() => regenerateMutation.mutate({ 
@@ -454,7 +353,7 @@ export default function History() {
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                   size="sm"
-                  disabled={regenerateMutation.isPending || video.status === 'queued'}
+                  disabled={regenerateMutation.isPending}
                   data-testid={`button-regenerate-${video.id}`}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
@@ -463,8 +362,7 @@ export default function History() {
               );
             }
           } catch (e) {
-            // If metadata parsing fails, show normal regenerate button
-            if (showRegenerateButton) {
+            if (video.status === 'failed') {
               return (
                 <Button
                   onClick={() => regenerateMutation.mutate({ 
@@ -475,7 +373,7 @@ export default function History() {
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                   size="sm"
-                  disabled={regenerateMutation.isPending || video.status === 'queued'}
+                  disabled={regenerateMutation.isPending}
                   data-testid={`button-regenerate-${video.id}`}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
@@ -489,96 +387,6 @@ export default function History() {
       </CardContent>
     </Card>
   );
-  };
-
-  const renderProjectGroup = (key: string, group: GroupedVideo) => {
-    const completedCount = group.videos.filter(v => v.status === 'completed').length;
-    const failedCount = group.videos.filter(v => v.status === 'failed').length;
-    const mergedUrl = group.project?.mergedVideoUrl || mergedVideoUrls[key];
-
-    if (group.project) {
-      // Cartoon project with scenes
-      return (
-        <Card key={key} className="mb-6 bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
-          <CardHeader className="p-4 sm:p-6 bg-purple-600/10 border-b border-white/10">
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex-1">
-                <CardTitle className="text-lg sm:text-xl mb-2 text-white">{group.project.title}</CardTitle>
-                <CardDescription className="text-sm text-gray-300">
-                  {completedCount} of {group.videos.length} scenes completed
-                  {failedCount > 0 && ` • ${failedCount} failed`}
-                </CardDescription>
-              </div>
-              {completedCount >= 2 && (
-                <Button
-                  onClick={() => handleMergeVideos(key, group.videos, group.project?.id)}
-                  disabled={mergingProject === key}
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 border-0"
-                  data-testid={`button-merge-${key}`}
-                >
-                  {mergingProject === key ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Merge className="w-4 h-4 mr-2" />
-                  )}
-                  Merge Videos
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            {mergedUrl && (
-              <div className="mb-6 p-4 bg-green-600/10 border border-green-500/30 rounded-lg">
-                <h3 className="font-semibold mb-3 flex items-center gap-2 text-white">
-                  <Play className="w-5 h-5 text-green-400" />
-                  Merged Video
-                </h3>
-                <div className="aspect-video bg-black rounded-lg overflow-hidden mb-3">
-                  <video
-                    src={mergedUrl}
-                    controls
-                    className="w-full h-full"
-                    data-testid={`merged-video-${key}`}
-                  />
-                </div>
-                <Button
-                  onClick={() => handleDownload(mergedUrl)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 border-0"
-                  size="sm"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Merged Video
-                </Button>
-              </div>
-            )}
-
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="scenes" className="border-white/10">
-                <AccordionTrigger className="text-sm sm:text-base text-white hover:text-white">
-                  View All Scenes ({group.videos.length})
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-4">
-                    {group.videos.map(video => renderVideoCard(video, true))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </CardContent>
-        </Card>
-      );
-    } else {
-      // Standalone videos
-      return (
-        <div key={key} className="mb-6">
-          <h3 className="text-lg font-semibold mb-4 text-white">Standalone Videos</h3>
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {group.videos.map(video => renderVideoCard(video, true))}
-          </div>
-        </div>
-      );
-    }
   };
 
   return (
@@ -601,11 +409,10 @@ export default function History() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white">Your Generated Videos</h2>
               <p className="text-sm sm:text-base text-gray-300 mt-1">
-                View, download, regenerate, and merge your cartoon videos
+                View, download, and merge your AI-generated videos
               </p>
             </div>
             
-            {/* Merge Selected Button */}
             {selectedVideos.size > 0 && (
               <div className="flex items-center gap-3">
                 <div className="text-sm text-gray-300">
@@ -629,7 +436,6 @@ export default function History() {
           </div>
         </div>
 
-        {/* Today's Statistics Card */}
         {todayStats.total > 0 && (
           <Card className="mb-6 bg-[#1e2838] dark:bg-[#181e2a] border border-white/10">
             <CardHeader className="p-4">
@@ -681,9 +487,9 @@ export default function History() {
           <div className="flex justify-center items-center py-12 sm:py-20">
             <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-primary" />
           </div>
-        ) : data?.grouped && Object.keys(data.grouped).length > 0 ? (
-          <div>
-            {Object.entries(data.grouped).map(([key, group]) => renderProjectGroup(key, group))}
+        ) : data?.videos && data.videos.length > 0 ? (
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {data.videos.map(video => renderVideoCard(video))}
           </div>
         ) : (
           <div className="text-center py-20">
