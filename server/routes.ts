@@ -679,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           textInput: {
             prompt: prompt
           },
-          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
           metadata: {
             sceneId: sceneId
           }
@@ -820,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           textInput: {
             prompt: prompt
           },
-          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
           metadata: {
             sceneId: sceneId
           }
@@ -929,7 +929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       textInput: {
                         prompt: prompt
                       },
-                      videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+                      videoModelKey: aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
                       metadata: {
                         sceneId: `retry-${videoId}-${Date.now()}`
                       }

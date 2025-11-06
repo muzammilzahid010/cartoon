@@ -77,7 +77,7 @@ async function processSingleVideo(video: QueuedVideo): Promise<void> {
         textInput: {
           prompt: video.prompt
         },
-        videoModelKey: video.aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+        videoModelKey: video.aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
         metadata: {
           sceneId: sceneId
         }
@@ -293,7 +293,7 @@ async function startBackgroundPolling(
                   textInput: {
                     prompt: video.prompt
                   },
-                  videoModelKey: video.aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
+                  videoModelKey: video.aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra",
                   metadata: {
                     sceneId: newSceneId
                   }
