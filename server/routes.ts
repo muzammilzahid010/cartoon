@@ -664,7 +664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
       const sceneId = `veo-${Date.now()}`;
       const seed = Math.floor(Math.random() * 100000);
 
@@ -806,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
       const sceneId = `regenerate-${videoId}-${Date.now()}`;
       const seed = Math.floor(Math.random() * 100000);
 

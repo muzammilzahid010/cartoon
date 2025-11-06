@@ -61,7 +61,7 @@ async function processSingleVideo(video: QueuedVideo): Promise<void> {
     }
 
     // Send VEO generation request
-    const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+    const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
     const sceneId = `bulk-${video.videoId}-${Date.now()}`;
     const seed = Math.floor(Math.random() * 100000);
 
@@ -274,7 +274,7 @@ async function startBackgroundPolling(
               await storage.updateTokenUsage(nextToken.id);
               
               // Start new generation with the new token
-              const veoProjectId = process.env.VEO3_PROJECT_ID || "06ad4933-483d-4ef6-b1d9-7a8bc21219cb";
+              const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
               const newSceneId = `retry-${videoId}-${Date.now()}`;
               const seed = Math.floor(Math.random() * 100000);
 
