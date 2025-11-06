@@ -622,11 +622,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Text to Image endpoint - sends prompt to n8n webhook
+  // Text to Image endpoint - uses Google AI Sandbox Whisk API (IMAGEN_3_5)
   app.post("/api/text-to-image", async (req, res) => {
     try {
       const schema = z.object({
         prompt: z.string().min(3, "Prompt must be at least 3 characters"),
+        aspectRatio: z.enum(["IMAGE_ASPECT_RATIO_LANDSCAPE", "IMAGE_ASPECT_RATIO_PORTRAIT", "IMAGE_ASPECT_RATIO_SQUARE"]).default("IMAGE_ASPECT_RATIO_LANDSCAPE")
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -638,38 +639,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { prompt } = validationResult.data;
+      const { prompt, aspectRatio } = validationResult.data;
 
-      console.log(`[Text to Image] Sending prompt to n8n webhook: ${prompt}`);
+      console.log(`[Text to Image] Generating image with prompt: ${prompt}`);
 
-      // Send prompt to n8n webhook
-      const webhookUrl = "https://n8n.webvpsserver.com/webhook/text-to-image";
+      // Get Google AI API key from environment
+      const apiKey = process.env.GOOGLE_AI_API_KEY;
       
-      const response = await fetch(webhookUrl, {
+      if (!apiKey) {
+        return res.status(500).json({ 
+          error: "Google AI API key not configured. Please set GOOGLE_AI_API_KEY environment variable." 
+        });
+      }
+
+      // Call Google AI Sandbox Whisk API
+      const apiUrl = "https://aisandbox-pa.googleapis.com/v1/whisk:generateImage";
+      
+      const requestBody = {
+        clientContext: {
+          workflowId: "f76a7144-2d6e-436b-9c64-5707bf091ef8",
+          tool: "BACKBONE",
+          sessionId: `;${Date.now()}`
+        },
+        imageModelSettings: {
+          imageModel: "IMAGEN_3_5",
+          aspectRatio: aspectRatio
+        },
+        prompt: prompt,
+        mediaCategory: "MEDIA_CATEGORY_BOARD"
+      };
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          prompt: prompt,
-          flow: "text-to-image" 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error(`n8n webhook returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[Text to Image] API error ${response.status}:`, errorText);
+        throw new Error(`Google AI API returned ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
       
-      console.log(`[Text to Image] Received response from n8n:`, result);
+      console.log(`[Text to Image] Received response from Google AI:`, JSON.stringify(result, null, 2));
 
-      // Assuming n8n returns an image URL in the response
-      // Adjust based on actual n8n response structure
-      const imageUrl = result.imageUrl || result.image || result.url || result.output;
+      // Extract image URL from response
+      // Adjust based on actual Google AI response structure
+      const imageUrl = result.imageUrl || result.image?.url || result.url || result.generatedImage || result.output;
 
       if (!imageUrl) {
-        throw new Error("No image URL received from n8n webhook");
+        console.error('[Text to Image] No image URL in response:', result);
+        throw new Error("No image URL received from Google AI API");
       }
 
       res.json({ 

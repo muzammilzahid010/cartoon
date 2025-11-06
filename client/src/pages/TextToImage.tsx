@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { Home, Loader2, Image as ImageIcon, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -10,17 +11,21 @@ import { useToast } from "@/hooks/use-toast";
 export default function TextToImage() {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
+  const [aspectRatio, setAspectRatio] = useState<string>("IMAGE_ASPECT_RATIO_LANDSCAPE");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   const generateMutation = useMutation({
-    mutationFn: async (imagePrompt: string) => {
+    mutationFn: async ({ imagePrompt, ratio }: { imagePrompt: string; ratio: string }) => {
       const response = await fetch('/api/text-to-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ prompt: imagePrompt }),
+        body: JSON.stringify({ 
+          prompt: imagePrompt,
+          aspectRatio: ratio 
+        }),
       });
 
       if (!response.ok) {
@@ -59,7 +64,7 @@ export default function TextToImage() {
     }
 
     setGeneratedImage(null);
-    generateMutation.mutate(prompt);
+    generateMutation.mutate({ imagePrompt: prompt, ratio: aspectRatio });
   };
 
   const handleDownload = () => {
@@ -122,6 +127,22 @@ export default function TextToImage() {
               <p className="text-xs text-gray-400 mt-2">
                 Be detailed and specific for best results
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Aspect Ratio
+              </label>
+              <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                <SelectTrigger className="bg-white/5 border-white/20 text-white" data-testid="select-aspect-ratio">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IMAGE_ASPECT_RATIO_LANDSCAPE">Landscape (16:9)</SelectItem>
+                  <SelectItem value="IMAGE_ASPECT_RATIO_PORTRAIT">Portrait (9:16)</SelectItem>
+                  <SelectItem value="IMAGE_ASPECT_RATIO_SQUARE">Square (1:1)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Button
