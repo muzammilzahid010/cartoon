@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link, useLocation } from "wouter";
 import { Home, Download, Calendar, Film, Loader2, RefreshCw, Merge, Play, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { VideoHistory, Scene } from "@shared/schema";
+import type { VideoHistory } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,7 +14,6 @@ interface GroupedVideo {
   project?: {
     id: string;
     title: string;
-    scenes: Scene[];
     characters: any[];
     mergedVideoUrl?: string;
   };
@@ -194,10 +193,10 @@ export default function History() {
       if (newSelection.has(videoId)) {
         newSelection.delete(videoId);
       } else {
-        if (newSelection.size >= 19) {
+        if (newSelection.size >= 18) {
           toast({
             title: "Maximum Selection Reached",
-            description: "You can select maximum 19 videos at a time.",
+            description: "You can select maximum 18 videos at a time.",
             variant: "destructive",
           });
           return prev;
@@ -450,8 +449,7 @@ export default function History() {
                   onClick={() => regenerateMutation.mutate({ 
                     sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
                     prompt: video.prompt,
-                    videoId: video.id,
-                    projectId: video.projectId || undefined
+                    videoId: video.id
                   })}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
@@ -472,8 +470,7 @@ export default function History() {
                   onClick={() => regenerateMutation.mutate({ 
                     sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
                     prompt: video.prompt,
-                    videoId: video.id,
-                    projectId: video.projectId || undefined
+                    videoId: video.id
                   })}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
@@ -612,7 +609,7 @@ export default function History() {
             {selectedVideos.size > 0 && (
               <div className="flex items-center gap-3">
                 <div className="text-sm text-gray-300">
-                  {selectedVideos.size} selected (max 19)
+                  {selectedVideos.size} selected (max 18)
                 </div>
                 <Button
                   onClick={handleMergeSelected}

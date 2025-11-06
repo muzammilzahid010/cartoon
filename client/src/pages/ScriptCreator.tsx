@@ -166,7 +166,7 @@ export default function ScriptCreator() {
                 id="numberOfPrompts"
                 type="number"
                 min={1}
-                max={100}
+                max={39}
                 value={numberOfPrompts}
                 onChange={(e) => setNumberOfPrompts(parseInt(e.target.value) || 10)}
                 className="bg-slate-800/50 border-slate-700 text-white"
@@ -174,7 +174,7 @@ export default function ScriptCreator() {
                 data-testid="input-number-of-prompts"
               />
               <p className="text-xs text-slate-500">
-                How many steps/scenes should the storyboard have? (1-100)
+                How many steps/scenes should the storyboard have? (1-39)
               </p>
             </div>
 

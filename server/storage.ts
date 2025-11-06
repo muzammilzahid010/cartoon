@@ -391,7 +391,8 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(videoHistory)
       .where(eq(videoHistory.userId, userId))
-      .orderBy(desc(videoHistory.createdAt));
+      .orderBy(desc(videoHistory.createdAt))
+      .limit(100);
   }
 
   async addVideoHistory(video: InsertVideoHistory): Promise<VideoHistory> {

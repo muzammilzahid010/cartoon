@@ -22,8 +22,8 @@ export async function mergeVideosWithFFmpeg(videoUrls: string[]): Promise<string
     throw new Error('No video URLs provided for merging');
   }
 
-  if (videoUrls.length > 19) {
-    throw new Error('Cannot merge more than 19 videos at once');
+  if (videoUrls.length > 18) {
+    throw new Error('Cannot merge more than 18 videos at once');
   }
 
   // Create unique temp directory for this merge operation
@@ -139,8 +139,8 @@ export async function mergeVideosWithFFmpegTemporary(
     throw new Error('No video URLs provided for merging');
   }
 
-  if (videoUrls.length > 19) {
-    throw new Error('Cannot merge more than 19 videos at once');
+  if (videoUrls.length > 18) {
+    throw new Error('Cannot merge more than 18 videos at once');
   }
 
   const uniqueId = randomUUID();

@@ -594,7 +594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         storyAbout: z.string().min(5, "Story description must be at least 5 characters"),
-        numberOfPrompts: z.number().min(1).max(100),
+        numberOfPrompts: z.number().min(1).max(39),
         finalStep: z.string().min(5, "Final step must be at least 5 characters")
       });
 
@@ -1509,7 +1509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/merge-selected-videos", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
-        videoIds: z.array(z.string()).min(2).max(19)
+        videoIds: z.array(z.string()).min(2).max(18)
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -1773,10 +1773,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (videoIds.length > 19) {
+      if (videoIds.length > 18) {
         return res.status(400).json({ 
           error: "Too many videos",
-          message: "Cannot merge more than 19 videos at once"
+          message: "Cannot merge more than 18 videos at once"
         });
       }
 
