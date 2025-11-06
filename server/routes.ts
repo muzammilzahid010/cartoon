@@ -622,6 +622,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Text to Image endpoint - sends prompt to n8n webhook
+  app.post("/api/text-to-image", async (req, res) => {
+    try {
+      const schema = z.object({
+        prompt: z.string().min(3, "Prompt must be at least 3 characters"),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { prompt } = validationResult.data;
+
+      console.log(`[Text to Image] Sending prompt to n8n webhook: ${prompt}`);
+
+      // Send prompt to n8n webhook
+      const webhookUrl = "https://n8n.webvpsserver.com/webhook/text-to-image";
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          prompt: prompt,
+          flow: "text-to-image" 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`n8n webhook returned ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      console.log(`[Text to Image] Received response from n8n:`, result);
+
+      // Assuming n8n returns an image URL in the response
+      // Adjust based on actual n8n response structure
+      const imageUrl = result.imageUrl || result.image || result.url || result.output;
+
+      if (!imageUrl) {
+        throw new Error("No image URL received from n8n webhook");
+      }
+
+      res.json({ 
+        imageUrl,
+        prompt,
+        success: true 
+      });
+    } catch (error) {
+      console.error("Error in /api/text-to-image:", error);
+      res.status(500).json({ 
+        error: "Failed to generate image",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Generate VEO video directly from prompt
   app.post("/api/generate-veo-video", async (req, res) => {
     let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;

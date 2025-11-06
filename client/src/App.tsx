@@ -10,6 +10,7 @@ import VeoGenerator from "@/pages/VeoGenerator";
 import BulkGenerator from "@/pages/BulkGenerator";
 import ScriptCreator from "@/pages/ScriptCreator";
 import History from "@/pages/History";
+import TextToImage from "@/pages/TextToImage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/bulk-generator" component={BulkGenerator} />
       <Route path="/script-creator" component={ScriptCreator} />
       <Route path="/history" component={History} />
+      <Route path="/text-to-image" component={TextToImage} />
       <Route component={NotFound} />
     </Switch>
   );

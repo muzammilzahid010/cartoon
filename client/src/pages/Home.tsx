@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video } from "lucide-react";
+import { LogIn, Shield, LogOut, User, Menu, PlayCircle, History as HistoryIcon, Film, Sparkles, Wand2, Video, ImageIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +53,14 @@ export default function Home() {
       href: "/bulk-generator",
       gradient: "from-blue-500 to-cyan-500",
       testId: "link-bulk-generator"
+    },
+    {
+      title: "Text to Image Generator",
+      description: "Create stunning AI-generated images from text descriptions",
+      icon: ImageIcon,
+      href: "/text-to-image",
+      gradient: "from-pink-500 to-rose-500",
+      testId: "link-text-to-image"
     },
     {
       title: "Script Creator",
