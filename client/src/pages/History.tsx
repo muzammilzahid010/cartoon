@@ -83,6 +83,50 @@ export default function History() {
     },
   });
 
+  const regenerateImageToVideoMutation = useMutation({
+    mutationFn: async ({ prompt, videoId, aspectRatio, referenceImageUrl }: { 
+      prompt: string; 
+      videoId: string;
+      aspectRatio: string;
+      referenceImageUrl: string;
+    }) => {
+      const response = await fetch('/api/regenerate-image-to-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          videoId,
+          prompt,
+          aspectRatio,
+          referenceImageUrl
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to regenerate image to video');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Image to Video Regeneration Started",
+        description: "Your video is being regenerated from the image. This may take a few minutes.",
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Regeneration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const retryMergeMutation = useMutation({
     mutationFn: async (videoId: string) => {
       const response = await fetch(`/api/retry-merge/${videoId}`, {
@@ -312,16 +356,28 @@ export default function History() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button
-                onClick={() => regenerateMutation.mutate({ 
-                  sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
-                  prompt: video.prompt,
-                  videoId: video.id,
-                  aspectRatio: video.aspectRatio
-                })}
+                onClick={() => {
+                  // Check if this is an image-to-video entry
+                  if (video.referenceImageUrl) {
+                    regenerateImageToVideoMutation.mutate({ 
+                      prompt: video.prompt,
+                      videoId: video.id,
+                      aspectRatio: video.aspectRatio === "VIDEO_ASPECT_RATIO_PORTRAIT" ? "portrait" : "landscape",
+                      referenceImageUrl: video.referenceImageUrl
+                    });
+                  } else {
+                    regenerateMutation.mutate({ 
+                      sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                      prompt: video.prompt,
+                      videoId: video.id,
+                      aspectRatio: video.aspectRatio
+                    });
+                  }
+                }}
                 variant="outline"
                 className="w-full border-white/20 text-white hover:bg-white/10"
                 size="sm"
-                disabled={regenerateMutation.isPending}
+                disabled={regenerateMutation.isPending || regenerateImageToVideoMutation.isPending}
                 data-testid={`button-regenerate-${video.id}`}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
@@ -364,16 +420,28 @@ export default function History() {
             if (!isMergedVideo && video.status === 'failed') {
               return (
                 <Button
-                  onClick={() => regenerateMutation.mutate({ 
-                    sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
-                    prompt: video.prompt,
-                    videoId: video.id,
-                    aspectRatio: video.aspectRatio
-                  })}
+                  onClick={() => {
+                    // Check if this is an image-to-video entry
+                    if (video.referenceImageUrl) {
+                      regenerateImageToVideoMutation.mutate({ 
+                        prompt: video.prompt,
+                        videoId: video.id,
+                        aspectRatio: video.aspectRatio === "VIDEO_ASPECT_RATIO_PORTRAIT" ? "portrait" : "landscape",
+                        referenceImageUrl: video.referenceImageUrl
+                      });
+                    } else {
+                      regenerateMutation.mutate({ 
+                        sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                        prompt: video.prompt,
+                        videoId: video.id,
+                        aspectRatio: video.aspectRatio
+                      });
+                    }
+                  }}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                   size="sm"
-                  disabled={regenerateMutation.isPending}
+                  disabled={regenerateMutation.isPending || regenerateImageToVideoMutation.isPending}
                   data-testid={`button-regenerate-${video.id}`}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
@@ -385,16 +453,28 @@ export default function History() {
             if (video.status === 'failed') {
               return (
                 <Button
-                  onClick={() => regenerateMutation.mutate({ 
-                    sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
-                    prompt: video.prompt,
-                    videoId: video.id,
-                    aspectRatio: video.aspectRatio
-                  })}
+                  onClick={() => {
+                    // Check if this is an image-to-video entry
+                    if (video.referenceImageUrl) {
+                      regenerateImageToVideoMutation.mutate({ 
+                        prompt: video.prompt,
+                        videoId: video.id,
+                        aspectRatio: video.aspectRatio === "VIDEO_ASPECT_RATIO_PORTRAIT" ? "portrait" : "landscape",
+                        referenceImageUrl: video.referenceImageUrl
+                      });
+                    } else {
+                      regenerateMutation.mutate({ 
+                        sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                        prompt: video.prompt,
+                        videoId: video.id,
+                        aspectRatio: video.aspectRatio
+                      });
+                    }
+                  }}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                   size="sm"
-                  disabled={regenerateMutation.isPending}
+                  disabled={regenerateMutation.isPending || regenerateImageToVideoMutation.isPending}
                   data-testid={`button-regenerate-${video.id}`}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />

@@ -1355,6 +1355,248 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate an image-to-video from history
+  app.post("/api/regenerate-image-to-video", requireAuth, async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const schema = z.object({
+        videoId: z.string(),
+        prompt: z.string().min(3, "Prompt must be at least 3 characters"),
+        aspectRatio: z.enum(["landscape", "portrait"]).default("landscape"),
+        referenceImageUrl: z.string().url("Invalid reference image URL"),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors 
+        });
+      }
+
+      const { videoId, prompt, aspectRatio, referenceImageUrl } = validationResult.data;
+      
+      // Verify the video exists and belongs to the user
+      const updatedVideo = await storage.updateVideoHistoryStatus(videoId, userId, 'pending');
+      
+      if (!updatedVideo) {
+        return res.status(404).json({ 
+          error: "Video not found or you don't have permission to regenerate it" 
+        });
+      }
+
+      // Get API key from token rotation system
+      rotationToken = await storage.getNextRotationToken();
+      
+      if (!rotationToken) {
+        return res.status(500).json({ 
+          error: "No API tokens configured. Please add tokens in the admin panel." 
+        });
+      }
+
+      const apiKey = rotationToken.token;
+      console.log(`[Image to Video Regenerate] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+      await storage.updateTokenUsage(rotationToken.id);
+
+      const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
+      const sceneId = crypto.randomUUID();
+
+      // Fetch the image from Cloudinary
+      console.log(`[Image to Video Regenerate] Fetching image from: ${referenceImageUrl}`);
+      const imageResponse = await fetch(referenceImageUrl);
+      
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image from Cloudinary: ${imageResponse.statusText}`);
+      }
+
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+      
+      // Detect mime type from URL or default to jpeg
+      const mimeType = referenceImageUrl.includes('.png') ? 'image/png' : 'image/jpeg';
+
+      // Step 1: Upload image to Google AI
+      console.log(`[Image to Video Regenerate] Step 1: Uploading image to Google AI...`);
+      const uploadPayload = {
+        imageInput: {
+          rawImageBytes: imageBase64,
+          mimeType: mimeType
+        }
+      };
+
+      const uploadResponse = await fetch('https://aisandbox-pa.googleapis.com/v1:uploadUserImage', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(uploadPayload),
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error(`[Image to Video Regenerate] Image upload failed: ${errorText}`);
+        throw new Error(`Image upload failed: ${uploadResponse.statusText}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      const mediaGenId = uploadData.mediaGenerationId?.mediaGenerationId || uploadData.mediaGenerationId;
+
+      if (!mediaGenId) {
+        throw new Error('No media generation ID returned from image upload');
+      }
+
+      console.log(`[Image to Video Regenerate] Image uploaded. Media ID: ${mediaGenId}`);
+
+      // Step 2: Generate video with reference image
+      console.log(`[Image to Video Regenerate] Step 2: Generating video...`);
+      const videoPayload = {
+        clientContext: {
+          projectId: veoProjectId,
+          tool: "PINHOLE",
+          userPaygateTier: "PAYGATE_TIER_TWO"
+        },
+        requests: [{
+          aspectRatio: aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE",
+          metadata: {
+            sceneId: sceneId
+          },
+          referenceImages: [{
+            imageUsageType: "IMAGE_USAGE_TYPE_ASSET",
+            mediaId: mediaGenId
+          }],
+          textInput: {
+            prompt: prompt
+          },
+          videoModelKey: "veo_3_0_r2v_fast_ultra"
+        }]
+      };
+
+      const videoResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoReferenceImages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(videoPayload),
+      });
+
+      if (!videoResponse.ok) {
+        const errorText = await videoResponse.text();
+        console.error(`[Image to Video Regenerate] Video generation failed: ${errorText}`);
+        throw new Error(`Video generation failed: ${videoResponse.statusText}`);
+      }
+
+      const videoData = await videoResponse.json();
+      const operationName = videoData.operations?.[0]?.operation?.name;
+
+      if (!operationName) {
+        throw new Error('No operation name returned from VEO API');
+      }
+
+      console.log(`[Image to Video Regenerate] Video generation started. Operation: ${operationName}`);
+
+      // Start background polling
+      (async () => {
+        try {
+          const maxWaitTime = 4 * 60 * 1000; // 4 minutes timeout
+          const pollInterval = 3000; // Poll every 3 seconds
+          const startTime = Date.now();
+          let completed = false;
+          let currentOperationName = operationName;
+          let currentSceneId = sceneId;
+          let currentApiKey = apiKey;
+          let currentRotationToken = rotationToken;
+
+          while (!completed && (Date.now() - startTime) < maxWaitTime) {
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+            try {
+              const statusResult = await checkVideoStatus(currentOperationName, currentSceneId, currentApiKey);
+
+              if (statusResult.status === 'COMPLETED' || 
+                  statusResult.status === 'MEDIA_GENERATION_STATUS_COMPLETE' || 
+                  statusResult.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
+                completed = true;
+                
+                if (statusResult.videoUrl) {
+                  try {
+                    console.log(`[Image to Video Regenerate] Uploading video ${videoId} to Cloudinary...`);
+                    const cloudinaryUrl = await uploadVideoToCloudinary(statusResult.videoUrl);
+                    console.log(`[Image to Video Regenerate] Video ${videoId} uploaded to Cloudinary: ${cloudinaryUrl}`);
+                    
+                    await storage.updateVideoHistoryFields(videoId, {
+                      videoUrl: cloudinaryUrl,
+                      status: 'completed',
+                    });
+                    console.log(`[Image to Video Regenerate] Video ${videoId} completed successfully`);
+                  } catch (uploadError) {
+                    console.error(`[Image to Video Regenerate] Failed to upload video ${videoId} to Cloudinary:`, uploadError);
+                    await storage.updateVideoHistoryFields(videoId, {
+                      videoUrl: statusResult.videoUrl,
+                      status: 'completed',
+                    });
+                  }
+                }
+              } else if (statusResult.status === 'FAILED' || 
+                         statusResult.status === 'MEDIA_GENERATION_STATUS_FAILED') {
+                completed = true;
+                await storage.updateVideoHistoryFields(videoId, { status: 'failed' });
+                console.error(`[Image to Video Regenerate] Video ${videoId} failed`);
+                
+                if (currentRotationToken) {
+                  storage.recordTokenError(currentRotationToken.id);
+                }
+              }
+            } catch (pollError) {
+              console.error(`[Image to Video Regenerate] Error polling status for ${videoId}:`, pollError);
+            }
+          }
+
+          // Timeout - mark as failed
+          if (!completed) {
+            console.error(`[Image to Video Regenerate] Video ${videoId} timed out after 4 minutes`);
+            await storage.updateVideoHistoryFields(videoId, { status: 'failed' });
+            
+            if (currentRotationToken) {
+              storage.recordTokenError(currentRotationToken.id);
+            }
+          }
+        } catch (bgError) {
+          console.error(`[Image to Video Regenerate] Background polling error for ${videoId}:`, bgError);
+        }
+      })();
+
+      res.json({
+        success: true,
+        operationName,
+        sceneId,
+        videoId,
+        message: "Image to video regeneration started",
+        tokenId: rotationToken?.id || null,
+        tokenLabel: rotationToken?.label || null
+      });
+    } catch (error) {
+      console.error("Error in /api/regenerate-image-to-video:", error);
+      
+      if (rotationToken) {
+        storage.recordTokenError(rotationToken.id);
+      }
+      
+      res.status(500).json({ 
+        error: "Failed to regenerate image to video",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Check video generation status
   app.post("/api/check-video-status", async (req, res) => {
     let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
