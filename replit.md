@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: OpenAI GPT-5 for script generation with automatic retry logic.
 - **Video Generation**: VEO 3 API, with prompts prefixed for "Disney Pixar-style 3D animation." Uses sequential processing with Server-Sent Events (SSE) for progress, automatic prompt cleaning, and individual/bulk retry mechanisms with concurrency control. Features per-scene token rotation to distribute load.
 - **Video Regeneration**: Background polling with a 4-minute timeout. Smart token rotation attempts different API tokens if videos don't complete within 2 minutes.
-- **Bulk Generation**: Backend queue system with configurable batch processing (1-50 videos per batch, 10-120 second delays). Uses round-robin token rotation for videos. Processing continues in the background even if the user leaves the page.
+- **Bulk Generation**: Backend queue system with configurable batch processing (1-50 videos per batch, 10-120 second delays). Maximum 100 prompts per bulk generation. Uses round-robin token rotation for videos. Processing continues in the background even if the user leaves the page.
 - **Automatic Timeout**: Videos stuck in pending status are marked as failed after 4 minutes, with a cleanup job running every 2 minutes.
 - **Daily History Cleanup**: Automatically clears all video history at midnight PKT (UTC+5) and cleans up expired temporary videos.
 - **Temporary Video Storage**: Stores merged videos in Replit Object Storage with a 24-hour expiry and hourly cleanup job.

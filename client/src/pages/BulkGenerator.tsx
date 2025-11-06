@@ -172,10 +172,10 @@ export default function BulkGenerator() {
       return;
     }
 
-    if (promptLines.length > 200) {
+    if (promptLines.length > 100) {
       toast({
         title: "Too many prompts",
-        description: "Maximum 200 prompts allowed. Please remove some prompts.",
+        description: "Maximum 100 prompts allowed. Please remove some prompts.",
         variant: "destructive",
       });
       return;
@@ -320,7 +320,7 @@ export default function BulkGenerator() {
               Bulk Video Generator
             </h1>
             <p className="text-gray-300 text-base md:text-lg">
-              Generate up to 200 videos at once with smart API token rotation
+              Generate up to 100 videos at once with smart API token rotation
             </p>
           </div>
           <Link href="/">
@@ -340,16 +340,16 @@ export default function BulkGenerator() {
                 Video Prompts
               </CardTitle>
               <CardDescription className="text-gray-300">
-                Enter up to 200 prompts (one per line)
+                Enter up to 100 prompts (one per line)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label htmlFor="prompts" className="text-white font-semibold">
-                    Prompts ({promptCount}/200)
+                    Prompts ({promptCount}/100)
                   </Label>
-                  {promptCount > 0 && promptCount <= 200 && (
+                  {promptCount > 0 && promptCount <= 100 && (
                     <span className="text-xs bg-green-600/30 border border-green-500/50 text-green-300 px-2 py-1 rounded-full">
                       ✓ Ready
                     </span>
@@ -364,10 +364,10 @@ export default function BulkGenerator() {
                   disabled={isGenerating}
                   data-testid="input-bulk-prompts"
                 />
-                {promptCount > 200 && (
+                {promptCount > 100 && (
                   <p className="text-sm text-red-300 mt-2 flex items-center gap-2 animate-slide-up">
                     <AlertCircle className="w-4 h-4" />
-                    Maximum 200 prompts allowed
+                    Maximum 100 prompts allowed
                   </p>
                 )}
               </div>
@@ -397,7 +397,7 @@ export default function BulkGenerator() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || promptCount === 0 || promptCount > 200}
+                disabled={isGenerating || promptCount === 0 || promptCount > 100}
                 className="w-full h-12 md:h-14 bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift text-base md:text-lg font-semibold border-0"
                 data-testid="button-generate-bulk"
               >

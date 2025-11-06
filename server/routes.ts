@@ -487,7 +487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const schema = z.object({
-        prompts: z.array(z.string().min(10, "Each prompt must be at least 10 characters")).min(1).max(200),
+        prompts: z.array(z.string().min(10, "Each prompt must be at least 10 characters")).min(1).max(100),
         aspectRatio: z.enum(["landscape", "portrait"]),
       });
 
