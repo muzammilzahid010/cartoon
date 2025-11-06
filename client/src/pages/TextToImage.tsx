@@ -67,16 +67,44 @@ export default function TextToImage() {
     generateMutation.mutate({ imagePrompt: prompt, ratio: aspectRatio });
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generatedImage) return;
 
-    const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `ai-image-${Date.now()}.png`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      toast({
+        title: "Downloading...",
+        description: "Preparing your image for download.",
+      });
+
+      // Fetch the image from Cloudinary
+      const response = await fetch(generatedImage);
+      const blob = await response.blob();
+
+      // Create a local blob URL
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `ai-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+      toast({
+        title: "Download Started!",
+        description: "Your image is being downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download the image. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
