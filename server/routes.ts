@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { db } from "./db";
 import { 
@@ -903,7 +904,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateTokenUsage(rotationToken.id);
 
       const veoProjectId = process.env.VEO3_PROJECT_ID || "5fdc3f34-d4c6-4afb-853a-aba4390bafdc";
-      const sceneId = `img-to-vid-${Date.now()}`;
+      // Generate UUID for sceneId (required format for image-to-video)
+      const sceneId = crypto.randomUUID();
       const seed = Math.floor(Math.random() * 100000);
 
       // Step 1: Upload image to Google AI
