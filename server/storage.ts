@@ -15,7 +15,7 @@ import {
   videoHistory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const SALT_ROUNDS = 10;
@@ -35,8 +35,13 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  deleteUser(userId: string): Promise<void>;
   updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined>;
+  removePlan(userId: string): Promise<User | undefined>;
   updateUserApiToken(userId: string, token: UpdateUserApiToken): Promise<User | undefined>;
+  incrementDailyVideoCount(userId: string): Promise<void>;
+  resetDailyVideoCount(userId: string): Promise<void>;
+  checkAndResetDailyCounts(): Promise<void>;
   verifyPassword(user: User, password: string): Promise<boolean>;
   initializeDefaultAdmin(): Promise<void>;
   
@@ -83,25 +88,61 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const hashedPassword = await bcrypt.hash(insertUser.password, SALT_ROUNDS);
+    
+    // Calculate plan expiry if plan is assigned (10 days from now)
+    let planExpiry = null;
+    let planStartDate = null;
+    if (insertUser.planType && insertUser.planType !== "free") {
+      planStartDate = new Date().toISOString();
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 10);
+      planExpiry = expiryDate.toISOString();
+    }
+    
     const [user] = await db
       .insert(users)
       .values({
         username: insertUser.username,
         password: hashedPassword,
         isAdmin: insertUser.isAdmin ?? false,
+        planType: insertUser.planType || "free",
+        planStartDate: planStartDate,
+        planExpiry: planExpiry,
+        dailyResetDate: new Date().toISOString(),
       })
       .returning();
     return user;
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    // First delete user's video history
+    await db.delete(videoHistory).where(eq(videoHistory.userId, userId));
+    // Then delete the user
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
   async updateUserPlan(userId: string, plan: UpdateUserPlan): Promise<User | undefined> {
     try {
+      // If assigning a new plan, set start date and expiry
+      let planStartDate = plan.planStartDate || null;
+      let planExpiry = plan.planExpiry || null;
+      
+      if (plan.planType !== "free" && !planStartDate) {
+        planStartDate = new Date().toISOString();
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 10);
+        planExpiry = expiryDate.toISOString();
+      }
+      
       const [updatedUser] = await db
         .update(users)
         .set({
           planType: plan.planType,
           planStatus: plan.planStatus,
-          planExpiry: plan.planExpiry || null,
+          planStartDate: planStartDate,
+          planExpiry: planExpiry,
+          dailyVideoCount: 0, // Reset count when plan changes
+          dailyResetDate: new Date().toISOString(),
         })
         .where(eq(users.id, userId))
         .returning();
@@ -109,6 +150,28 @@ export class DatabaseStorage implements IStorage {
       return updatedUser || undefined;
     } catch (error) {
       console.error("Error updating user plan:", error);
+      throw error;
+    }
+  }
+
+  async removePlan(userId: string): Promise<User | undefined> {
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          planType: "free",
+          planStatus: "active", // Free users remain active
+          planStartDate: null,
+          planExpiry: null,
+          dailyVideoCount: 0,
+          dailyResetDate: new Date().toISOString(),
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error("Error removing user plan:", error);
       throw error;
     }
   }
@@ -130,6 +193,39 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async incrementDailyVideoCount(userId: string): Promise<void> {
+    // Use atomic SQL increment to avoid race conditions
+    await db
+      .update(users)
+      .set({ dailyVideoCount: sql`${users.dailyVideoCount} + 1` })
+      .where(eq(users.id, userId));
+  }
+
+  async resetDailyVideoCount(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        dailyVideoCount: 0,
+        dailyResetDate: new Date().toISOString(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async checkAndResetDailyCounts(): Promise<void> {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    
+    // Reset all users whose dailyResetDate is before today
+    // This query is more efficient than fetching all users
+    await db
+      .update(users)
+      .set({
+        dailyVideoCount: 0,
+        dailyResetDate: today,
+      })
+      .where(sql`daily_reset_date < ${today} OR daily_reset_date IS NULL`);
+  }
+
   async verifyPassword(user: User, password: string): Promise<boolean> {
     return await bcrypt.compare(password, user.password);
   }
@@ -146,7 +242,7 @@ export class DatabaseStorage implements IStorage {
           username: "muzi",
           password: hashedPassword,
           isAdmin: true,
-          planType: "premium",
+          planType: "free",
           planStatus: "active",
         });
         console.log("✓ Default admin user created (username: muzi, password: muzi123)");

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -10,7 +10,10 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   planType: text("plan_type").notNull().default("free"),
   planStatus: text("plan_status").notNull().default("active"),
+  planStartDate: text("plan_start_date").default(sql`null`),
   planExpiry: text("plan_expiry").default(sql`null`),
+  dailyVideoCount: integer("daily_video_count").notNull().default(0),
+  dailyResetDate: text("daily_reset_date").default(sql`null`),
   apiToken: text("api_token").default(sql`null`),
 });
 
@@ -18,11 +21,16 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   isAdmin: true,
+}).extend({
+  planType: z.enum(["free", "scale", "empire"]).optional(),
+  planStartDate: z.string().optional(),
+  planExpiry: z.string().optional(),
 });
 
 export const updateUserPlanSchema = z.object({
-  planType: z.enum(["free", "basic", "premium"]),
+  planType: z.enum(["free", "scale", "empire"]),
   planStatus: z.enum(["active", "expired", "cancelled"]),
+  planStartDate: z.string().optional(),
   planExpiry: z.string().optional(),
 });
 
