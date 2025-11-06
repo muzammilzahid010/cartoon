@@ -624,6 +624,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Text to Image endpoint - uses Google AI Sandbox Whisk API (IMAGEN_3_5)
   app.post("/api/text-to-image", async (req, res) => {
+    let rotationToken: Awaited<ReturnType<typeof storage.getNextRotationToken>> | undefined;
+    
     try {
       const schema = z.object({
         prompt: z.string().min(3, "Prompt must be at least 3 characters"),
@@ -641,14 +643,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { prompt, aspectRatio } = validationResult.data;
 
-      console.log(`[Text to Image] Generating image with prompt: ${prompt}`);
+      console.log(`[Text to Image] Generating image - Aspect Ratio: ${aspectRatio}, Prompt: ${prompt}`);
 
-      // Get Google AI API key from environment
-      const apiKey = process.env.GOOGLE_AI_API_KEY;
+      // Get API key from token rotation system (same as VEO)
+      let apiKey: string | undefined;
+      rotationToken = await storage.getNextRotationToken();
       
+      if (rotationToken) {
+        apiKey = rotationToken.token;
+        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+        await storage.updateTokenUsage(rotationToken.id);
+      } else {
+        apiKey = process.env.GOOGLE_AI_API_KEY;
+        console.log('[Token Rotation] No active tokens found, using environment variable GOOGLE_AI_API_KEY');
+      }
+
       if (!apiKey) {
         return res.status(500).json({ 
-          error: "Google AI API key not configured. Please set GOOGLE_AI_API_KEY environment variable." 
+          error: "No API key configured. Please add tokens in the admin panel or set GOOGLE_AI_API_KEY environment variable." 
         });
       }
 
@@ -700,6 +712,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         imageUrl,
         prompt,
+        aspectRatio,
+        tokenUsed: rotationToken?.label,
         success: true 
       });
     } catch (error) {
