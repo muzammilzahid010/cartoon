@@ -137,7 +137,7 @@ export default function ImageToVideo() {
         throw new Error(result.error || 'Failed to start video generation');
       }
 
-      const { operationName, sceneId, historyId } = result;
+      const { operationName, sceneId, historyId, tokenId } = result;
       historyEntryId = historyId; // Use history ID from backend
 
       // Poll for video status
@@ -155,7 +155,7 @@ export default function ImageToVideo() {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-          body: JSON.stringify({ operationName, sceneId }),
+          body: JSON.stringify({ operationName, sceneId, tokenId }),
         });
 
         const statusData = await statusResponse.json();

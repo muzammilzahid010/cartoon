@@ -1604,7 +1604,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         operationName: z.string(),
-        sceneId: z.string()
+        sceneId: z.string(),
+        tokenId: z.string().optional() // Optional: use specific token if provided
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -1616,17 +1617,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { operationName, sceneId } = validationResult.data;
+      const { operationName, sceneId, tokenId } = validationResult.data;
       
-      // Get API key from token rotation system or fallback to environment variable
+      // Get API key - use specific token if provided, otherwise use rotation
       let apiKey: string | undefined;
-      rotationToken = await storage.getNextRotationToken();
       
-      if (rotationToken) {
-        apiKey = rotationToken.token;
-        console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
-        await storage.updateTokenUsage(rotationToken.id);
+      if (tokenId) {
+        // Use the specific token that created this video
+        const specificToken = await storage.getTokenById(tokenId);
+        if (specificToken) {
+          rotationToken = specificToken;
+          apiKey = specificToken.token;
+          console.log(`[Status Check] Using specific token: ${specificToken.label} (ID: ${specificToken.id})`);
+          await storage.updateTokenUsage(specificToken.id);
+        } else {
+          console.log(`[Status Check] Requested token ${tokenId} not found, falling back to rotation`);
+          rotationToken = await storage.getNextRotationToken();
+          if (rotationToken) {
+            apiKey = rotationToken.token;
+            console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+            await storage.updateTokenUsage(rotationToken.id);
+          }
+        }
       } else {
+        // No specific token provided, use rotation
+        rotationToken = await storage.getNextRotationToken();
+        if (rotationToken) {
+          apiKey = rotationToken.token;
+          console.log(`[Token Rotation] Using token: ${rotationToken.label} (ID: ${rotationToken.id})`);
+          await storage.updateTokenUsage(rotationToken.id);
+        }
+      }
+      
+      if (!rotationToken) {
         apiKey = process.env.VEO3_API_KEY;
         console.log('[Token Rotation] No active tokens found, using environment variable VEO3_API_KEY');
       }

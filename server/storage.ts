@@ -47,6 +47,7 @@ export interface IStorage {
   deleteApiToken(tokenId: string): Promise<void>;
   toggleApiTokenStatus(tokenId: string, isActive: boolean): Promise<ApiToken | undefined>;
   getNextRotationToken(): Promise<ApiToken | undefined>;
+  getTokenById(tokenId: string): Promise<ApiToken | undefined>;
   getTokenByIndex(index: number): Promise<ApiToken | undefined>;
   updateTokenUsage(tokenId: string): Promise<void>;
   replaceAllTokens(tokens: string[]): Promise<ApiToken[]>;
@@ -217,6 +218,14 @@ export class DatabaseStorage implements IStorage {
     
     console.log('[Token Rotation] All active tokens are in cooldown or near error threshold');
     return undefined;
+  }
+
+  async getTokenById(tokenId: string): Promise<ApiToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.id, tokenId));
+    return token || undefined;
   }
 
   async getTokenByIndex(index: number): Promise<ApiToken | undefined> {
