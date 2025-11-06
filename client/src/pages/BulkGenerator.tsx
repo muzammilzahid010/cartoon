@@ -188,10 +188,11 @@ export default function BulkGenerator() {
       return;
     }
 
-    if (promptLines.length > 100) {
+    const maxPromptsAllowed = planConfig?.bulkGeneration.maxPrompts || 0;
+    if (promptLines.length > maxPromptsAllowed) {
       toast({
         title: "Too many prompts",
-        description: "Maximum 100 prompts allowed. Please remove some prompts.",
+        description: `Maximum ${maxPromptsAllowed} prompts allowed for your plan. Please remove some prompts.`,
         variant: "destructive",
       });
       return;
@@ -336,7 +337,7 @@ export default function BulkGenerator() {
               Bulk Video Generator
             </h1>
             <p className="text-gray-300 text-base md:text-lg">
-              Generate up to 100 videos at once with smart API token rotation
+              Generate multiple videos at once with smart API token rotation
             </p>
           </div>
           <Link href="/">
@@ -356,7 +357,7 @@ export default function BulkGenerator() {
                 Video Prompts
               </CardTitle>
               <CardDescription className="text-gray-300">
-                Enter up to 100 prompts (one per line)
+                Enter up to {planConfig?.bulkGeneration.maxPrompts || 100} prompts (one per line)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
@@ -377,7 +378,8 @@ export default function BulkGenerator() {
                   <Crown className="h-4 w-4" />
                   <AlertTitle>{planConfig.name} Plan</AlertTitle>
                   <AlertDescription>
-                    Max batch size: {planConfig.bulkGeneration.maxBatch} videos | 
+                    Max prompts: {planConfig.bulkGeneration.maxPrompts} | 
+                    Batch size: {planConfig.bulkGeneration.maxBatch} videos | 
                     Daily limit: {remainingVideos}/{planConfig.dailyLimit} remaining
                   </AlertDescription>
                 </Alert>
@@ -386,9 +388,9 @@ export default function BulkGenerator() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label htmlFor="prompts" className="text-white font-semibold">
-                    Prompts ({promptCount}/{planConfig?.bulkGeneration.maxBatch || 100})
+                    Prompts ({promptCount}/{planConfig?.bulkGeneration.maxPrompts || 100})
                   </Label>
-                  {promptCount > 0 && promptCount <= (planConfig?.bulkGeneration.maxBatch || 100) && (
+                  {promptCount > 0 && promptCount <= (planConfig?.bulkGeneration.maxPrompts || 100) && (
                     <span className="text-xs bg-green-600/30 border border-green-500/50 text-green-300 px-2 py-1 rounded-full">
                       ✓ Ready
                     </span>
@@ -403,10 +405,10 @@ export default function BulkGenerator() {
                   disabled={isGenerating || !toolAccess.allowed}
                   data-testid="input-bulk-prompts"
                 />
-                {promptCount > (planConfig?.bulkGeneration.maxBatch || 100) && (
+                {promptCount > (planConfig?.bulkGeneration.maxPrompts || 100) && (
                   <p className="text-sm text-red-300 mt-2 flex items-center gap-2 animate-slide-up">
                     <AlertCircle className="w-4 h-4" />
-                    Maximum {planConfig?.bulkGeneration.maxBatch || 100} prompts allowed for your plan
+                    Maximum {planConfig?.bulkGeneration.maxPrompts || 100} prompts allowed for your plan
                   </p>
                 )}
                 {promptCount > remainingVideos && user && !user.isAdmin && (
@@ -446,7 +448,7 @@ export default function BulkGenerator() {
                   isGenerating || 
                   !toolAccess.allowed || 
                   promptCount === 0 || 
-                  promptCount > (planConfig?.bulkGeneration.maxBatch || 100) ||
+                  promptCount > (planConfig?.bulkGeneration.maxPrompts || 100) ||
                   (user && !user.isAdmin && promptCount > remainingVideos)
                 }
                 className="w-full h-12 md:h-14 bg-purple-600 hover:bg-purple-700 shadow-lg hover-lift text-base md:text-lg font-semibold border-0 disabled:opacity-50 disabled:cursor-not-allowed"

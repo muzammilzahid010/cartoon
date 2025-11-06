@@ -5,10 +5,11 @@ export const PLAN_CONFIGS = {
   free: {
     name: "Free",
     dailyVideoLimit: 0, // Free users have limited access
-    allowedTools: ["veo"], // Only VEO 3
+    allowedTools: ["veo"] as const, // Only VEO 3
     bulkGeneration: {
       maxBatch: 0,
       delaySeconds: 0,
+      maxPrompts: 0,
     },
   },
   scale: {
@@ -16,10 +17,11 @@ export const PLAN_CONFIGS = {
     price: "900 PKR",
     duration: "10 days",
     dailyVideoLimit: 1000,
-    allowedTools: ["veo", "bulk"], // VEO 3 + Bulk generation
+    allowedTools: ["veo", "bulk"] as const, // VEO 3 + Bulk generation
     bulkGeneration: {
       maxBatch: 7,
       delaySeconds: 30,
+      maxPrompts: 50,
     },
   },
   empire: {
@@ -27,15 +29,17 @@ export const PLAN_CONFIGS = {
     price: "1500 PKR",
     duration: "10 days",
     dailyVideoLimit: 2000,
-    allowedTools: ["veo", "bulk", "script", "textToImage", "imageToVideo"], // All tools
+    allowedTools: ["veo", "bulk", "script", "textToImage", "imageToVideo"] as const, // All tools
     bulkGeneration: {
       maxBatch: 20,
       delaySeconds: 15,
+      maxPrompts: 100,
     },
   },
 } as const;
 
 export type PlanType = keyof typeof PLAN_CONFIGS;
+export type AllowedTool = "veo" | "bulk" | "script" | "textToImage" | "imageToVideo";
 
 export interface PlanCheckResult {
   allowed: boolean;
@@ -105,7 +109,7 @@ export function getRemainingVideos(user: User): number {
 /**
  * Check if user can access a specific tool
  */
-export function canAccessTool(user: User, tool: string): PlanCheckResult {
+export function canAccessTool(user: User, tool: AllowedTool): PlanCheckResult {
   // Admin can access everything
   if (user.isAdmin) {
     return { allowed: true };
@@ -128,7 +132,7 @@ export function canAccessTool(user: User, tool: string): PlanCheckResult {
   }
 
   // Check if tool is allowed for this plan
-  if (!config.allowedTools.includes(tool)) {
+  if (!config.allowedTools.includes(tool as any)) {
     return {
       allowed: false,
       reason: `This tool is not available on your ${config.name} plan. Please upgrade to access this feature.`,
@@ -188,12 +192,18 @@ export function canBulkGenerate(user: User, videoCount: number): PlanCheckResult
 
   const config = PLAN_CONFIGS[user.planType as PlanType];
   
-  // Check if batch size exceeds plan limit
-  if (videoCount > config.bulkGeneration.maxBatch) {
+  // Check if total prompts exceeds plan limit
+  if (videoCount > config.bulkGeneration.maxPrompts) {
     return {
       allowed: false,
-      reason: `Your ${config.name} plan allows a maximum of ${config.bulkGeneration.maxBatch} videos per batch. Please reduce the number of videos.`,
+      reason: `Your ${config.name} plan allows a maximum of ${config.bulkGeneration.maxPrompts} prompts in total. Please reduce the number of prompts.`,
     };
+  }
+  
+  // Check if batch size exceeds plan limit (not enforced here, enforced by backend delay/batch processing)
+  // This is informational only
+  if (config.bulkGeneration.maxBatch > 0 && videoCount > config.bulkGeneration.maxBatch) {
+    // Note: This won't block submission but videos will be processed in batches
   }
 
   // Check daily limit

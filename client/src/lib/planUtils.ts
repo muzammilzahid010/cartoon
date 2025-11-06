@@ -15,6 +15,7 @@ type PlanConfig = {
   bulkGeneration: {
     maxBatch: number;
     delaySeconds: number;
+    maxPrompts: number;
   };
 };
 
@@ -26,6 +27,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     bulkGeneration: {
       maxBatch: 0,
       delaySeconds: 0,
+      maxPrompts: 0,
     },
   },
   scale: {
@@ -35,6 +37,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     bulkGeneration: {
       maxBatch: 7,
       delaySeconds: 30,
+      maxPrompts: 50,
     },
   },
   empire: {
@@ -44,6 +47,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     bulkGeneration: {
       maxBatch: 20,
       delaySeconds: 15,
+      maxPrompts: 100,
     },
   },
 };
