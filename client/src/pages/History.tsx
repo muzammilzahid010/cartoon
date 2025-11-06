@@ -40,10 +40,11 @@ export default function History() {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: async ({ prompt, sceneNumber, videoId }: { 
+    mutationFn: async ({ prompt, sceneNumber, videoId, aspectRatio }: { 
       prompt: string; 
       sceneNumber: number;
       videoId: string;
+      aspectRatio: string;
     }) => {
       const response = await fetch('/api/regenerate-video', {
         method: 'POST',
@@ -54,7 +55,7 @@ export default function History() {
         body: JSON.stringify({ 
           videoId,
           prompt,
-          aspectRatio: "landscape",
+          aspectRatio,
           sceneNumber
         }),
       });
@@ -309,15 +310,33 @@ export default function History() {
                 data-testid={`video-player-${video.id}`}
               />
             </div>
-            <Button
-              onClick={() => handleDownload(video.videoUrl!)}
-              className="w-full"
-              size="sm"
-              data-testid={`button-download-${video.id}`}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => regenerateMutation.mutate({ 
+                  sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                  prompt: video.prompt,
+                  videoId: video.id,
+                  aspectRatio: video.aspectRatio
+                })}
+                variant="outline"
+                className="w-full border-white/20 text-white hover:bg-white/10"
+                size="sm"
+                disabled={regenerateMutation.isPending}
+                data-testid={`button-regenerate-${video.id}`}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Regenerate
+              </Button>
+              <Button
+                onClick={() => handleDownload(video.videoUrl!)}
+                className="w-full"
+                size="sm"
+                data-testid={`button-download-${video.id}`}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
           </>
         )}
 
@@ -348,7 +367,8 @@ export default function History() {
                   onClick={() => regenerateMutation.mutate({ 
                     sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
                     prompt: video.prompt,
-                    videoId: video.id
+                    videoId: video.id,
+                    aspectRatio: video.aspectRatio
                   })}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
@@ -368,7 +388,8 @@ export default function History() {
                   onClick={() => regenerateMutation.mutate({ 
                     sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
                     prompt: video.prompt,
-                    videoId: video.id
+                    videoId: video.id,
+                    aspectRatio: video.aspectRatio
                   })}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
