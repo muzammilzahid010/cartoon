@@ -303,7 +303,7 @@ export default function Home() {
                       <span>Daily Usage:</span>
                     </div>
                     <span className="text-white font-medium">
-                      {session.user?.dailyVideoCount || 0} / {planConfig.dailyLimit}
+                      {session.user?.dailyVideoCount || 0} / {session.user?.planType === 'empire' ? 'Unlimited' : planConfig.dailyLimit}
                     </span>
                   </div>
                   <Progress 
