@@ -968,8 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }],
           textInput: {
             prompt: prompt
-          },
-          videoModelKey: "veo_3_0_r2v_fast_ultra" // Required for reference-to-video generation
+          }
         }]
       };
 
