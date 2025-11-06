@@ -449,7 +449,49 @@ export default function History() {
                 </Button>
               );
             }
+            
+            // Handle pending videos - allow regeneration
+            if (!isMergedVideo && (video.status === 'pending' || video.status === 'queued')) {
+              return (
+                <div className="space-y-2">
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 sm:p-3">
+                    <p className="text-xs text-yellow-300">
+                      This video is taking longer than expected. You can regenerate it to try again.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      // Check if this is an image-to-video entry
+                      if (video.referenceImageUrl) {
+                        regenerateImageToVideoMutation.mutate({ 
+                          prompt: video.prompt,
+                          videoId: video.id,
+                          aspectRatio: video.aspectRatio === "VIDEO_ASPECT_RATIO_PORTRAIT" ? "portrait" : "landscape",
+                          referenceImageUrl: video.referenceImageUrl
+                        });
+                      } else {
+                        regenerateMutation.mutate({ 
+                          sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                          prompt: video.prompt,
+                          videoId: video.id,
+                          aspectRatio: video.aspectRatio
+                        });
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full border-yellow-500/50 text-yellow-300 hover:bg-yellow-500/10"
+                    size="sm"
+                    disabled={regenerateMutation.isPending || regenerateImageToVideoMutation.isPending}
+                    data-testid={`button-regenerate-pending-${video.id}`}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerate
+                  </Button>
+                </div>
+              );
+            }
           } catch (e) {
+            // Fallback for when metadata parsing fails - show regenerate for failed videos
             if (video.status === 'failed') {
               return (
                 <Button
@@ -480,6 +522,47 @@ export default function History() {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Regenerate
                 </Button>
+              );
+            }
+            
+            // Fallback for pending/queued videos when metadata parsing fails
+            if (video.status === 'pending' || video.status === 'queued') {
+              return (
+                <div className="space-y-2">
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 sm:p-3">
+                    <p className="text-xs text-yellow-300">
+                      This video is taking longer than expected. You can regenerate it to try again.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      // Check if this is an image-to-video entry
+                      if (video.referenceImageUrl) {
+                        regenerateImageToVideoMutation.mutate({ 
+                          prompt: video.prompt,
+                          videoId: video.id,
+                          aspectRatio: video.aspectRatio === "VIDEO_ASPECT_RATIO_PORTRAIT" ? "portrait" : "landscape",
+                          referenceImageUrl: video.referenceImageUrl
+                        });
+                      } else {
+                        regenerateMutation.mutate({ 
+                          sceneNumber: parseInt(video.title?.match(/Scene (\d+)/)?.[1] || '1'),
+                          prompt: video.prompt,
+                          videoId: video.id,
+                          aspectRatio: video.aspectRatio
+                        });
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full border-yellow-500/50 text-yellow-300 hover:bg-yellow-500/10"
+                    size="sm"
+                    disabled={regenerateMutation.isPending || regenerateImageToVideoMutation.isPending}
+                    data-testid={`button-regenerate-pending-${video.id}`}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerate
+                  </Button>
+                </div>
               );
             }
           }
