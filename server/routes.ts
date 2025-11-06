@@ -701,7 +701,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[Text to Image] Received response from Google AI`);
 
       // Extract base64 image data from response
-      const base64Image = result.image?.base64 || result.base64 || result.imageData || result.data;
+      // Google AI returns the base64 string in the 'encodedImage' field
+      const base64Image = result.encodedImage || result.image?.base64 || result.base64 || result.imageData || result.data;
       
       if (!base64Image) {
         console.error('[Text to Image] No base64 image data in response:', result);
