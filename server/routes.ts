@@ -1163,7 +1163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           textInput: {
             prompt: prompt
           },
-          videoModelKey: "veo_3_0_r2v_fast_ultra"
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_0_r2v_fast_ultra"
         }]
       };
 
@@ -1669,7 +1669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           textInput: {
             prompt: prompt
           },
-          videoModelKey: "veo_3_0_r2v_fast_ultra"
+          videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_0_r2v_fast_ultra"
         }]
       };
 

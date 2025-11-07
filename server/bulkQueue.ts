@@ -19,13 +19,13 @@ const RETRY_DELAY_MS = 10000; // 10 seconds between retries
 /**
  * Add videos to the bulk generation queue
  */
-export function addToQueue(videos: QueuedVideo[]) {
+export function addToQueue(videos: QueuedVideo[], delaySeconds?: number) {
   bulkQueue.push(...videos);
   console.log(`[Bulk Queue] Added ${videos.length} videos to queue. Total in queue: ${bulkQueue.length}`);
   
   // Start processing if not already running
   if (!isProcessing) {
-    processQueue();
+    processQueue(delaySeconds);
   }
 }
 
@@ -171,7 +171,7 @@ async function processSingleVideo(video: QueuedVideo): Promise<void> {
 /**
  * Process the queue in the background with batch processing
  */
-async function processQueue() {
+async function processQueue(overrideDelaySeconds?: number) {
   if (isProcessing) {
     console.log('[Bulk Queue] Already processing queue');
     return;
@@ -182,14 +182,16 @@ async function processQueue() {
 
   // Fetch batch settings from database
   let videosPerBatch = 10;
-  let batchDelaySeconds = 20;
+  let batchDelaySeconds = overrideDelaySeconds || 20;
   
   try {
     const settings = await storage.getTokenSettings();
     if (settings) {
       videosPerBatch = parseInt(settings.videosPerBatch, 10) || 5;
-      batchDelaySeconds = parseInt(settings.batchDelaySeconds, 10) || 20;
-      console.log(`[Bulk Queue] Using batch settings: ${videosPerBatch} videos per batch, ${batchDelaySeconds}s delay`);
+      if (!overrideDelaySeconds) {
+        batchDelaySeconds = parseInt(settings.batchDelaySeconds, 10) || 20;
+      }
+      console.log(`[Bulk Queue] Using batch settings: ${videosPerBatch} videos per batch, ${batchDelaySeconds}s delay${overrideDelaySeconds ? ' (plan-specific)' : ''}`);
     }
   } catch (error) {
     console.error('[Bulk Queue] Error fetching batch settings, using defaults:', error);
