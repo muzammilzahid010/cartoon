@@ -380,7 +380,7 @@ export default function BulkGenerator() {
                   <AlertDescription>
                     Max prompts: {planConfig.bulkGeneration.maxPrompts} | 
                     Batch size: {planConfig.bulkGeneration.maxBatch} videos | 
-                    Daily limit: {remainingVideos}/{planConfig.dailyLimit} remaining
+                    Daily limit: {remainingVideos}/{user?.planType === 'empire' ? 'Unlimited' : planConfig.dailyLimit} remaining
                   </AlertDescription>
                 </Alert>
               )}
