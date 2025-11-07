@@ -103,6 +103,7 @@ export const videoHistory = pgTable("video_history", {
   videoUrl: text("video_url"),
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull().default(sql`now()::text`),
+  updatedAt: text("updated_at").notNull().default(sql`now()::text`),
   title: text("title"),
   tokenUsed: varchar("token_used").references(() => apiTokens.id),
   metadata: text("metadata"), // JSON string for merge info: { mergedVideoIds: string[] }
@@ -113,6 +114,7 @@ export const videoHistory = pgTable("video_history", {
 export const insertVideoHistorySchema = createInsertSchema(videoHistory).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type VideoHistory = typeof videoHistory.$inferSelect;

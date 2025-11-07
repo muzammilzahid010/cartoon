@@ -515,7 +515,10 @@ export class DatabaseStorage implements IStorage {
     videoUrl?: string,
     errorMessage?: string
   ): Promise<VideoHistory | undefined> {
-    const updateData: Partial<VideoHistory> = { status };
+    const updateData: Partial<VideoHistory> = { 
+      status,
+      updatedAt: sql`now()::text` as any
+    };
     if (videoUrl) {
       updateData.videoUrl = videoUrl;
     }
@@ -537,7 +540,7 @@ export class DatabaseStorage implements IStorage {
   ): Promise<VideoHistory | undefined> {
     const [updated] = await db
       .update(videoHistory)
-      .set(fields)
+      .set({ ...fields, updatedAt: sql`now()::text` as any })
       .where(eq(videoHistory.id, videoId))
       .returning();
     return updated || undefined;
