@@ -337,18 +337,19 @@ export default function ImageToVideo() {
                     <RadioGroupItem value="landscape" id="landscape" className="text-purple-500" />
                     <span className="text-white">Landscape (16:9)</span>
                   </Label>
-                  <Label
-                    htmlFor="portrait"
-                    className={`flex items-center space-x-3 border rounded-lg p-4 cursor-pointer transition-all ${
-                      aspectRatio === "portrait"
-                        ? "border-purple-500 bg-purple-500/10"
-                        : "border-white/20 bg-white/5 hover:border-white/40"
-                    }`}
-                    data-testid="radio-portrait"
-                  >
-                    <RadioGroupItem value="portrait" id="portrait" className="text-purple-500" />
-                    <span className="text-white">Portrait (9:16)</span>
-                  </Label>
+                  <div className="relative">
+                    <Label
+                      htmlFor="portrait"
+                      className="flex items-center space-x-3 border rounded-lg p-4 cursor-not-allowed transition-all border-white/10 bg-white/5 opacity-50"
+                      data-testid="radio-portrait"
+                    >
+                      <RadioGroupItem value="portrait" id="portrait" disabled className="text-gray-500" />
+                      <div className="flex flex-col">
+                        <span className="text-gray-400">Portrait (9:16)</span>
+                        <span className="text-xs text-gray-500 mt-0.5">Coming soon</span>
+                      </div>
+                    </Label>
+                  </div>
                 </div>
               </RadioGroup>
             </div>
