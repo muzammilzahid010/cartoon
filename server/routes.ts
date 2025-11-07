@@ -991,8 +991,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }]
       };
 
-      console.log(`[VEO Direct] Generating ${aspectRatio} video with prompt:`, prompt);
-      console.log(`[VEO Direct] Payload:`, JSON.stringify(payload, null, 2));
+      console.log(`[VEO Direct] === TEXT-TO-VIDEO GENERATION ===`);
+      console.log(`[VEO Direct] User: ${user.username} (Plan: ${user.planType})`);
+      console.log(`[VEO Direct] Scene ID: ${sceneId}`);
+      console.log(`[VEO Direct] Aspect Ratio: ${aspectRatio} (${aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE"})`);
+      console.log(`[VEO Direct] Video Model: ${aspectRatio === "portrait" ? "veo_3_1_t2v_fast_portrait_ultra" : "veo_3_1_t2v_fast_ultra"}`);
+      console.log(`[VEO Direct] Seed: ${seed}`);
+      console.log(`[VEO Direct] Prompt: "${prompt}"`);
+      console.log(`[VEO Direct] Token: ${rotationToken?.label || 'Environment Variable'} (ID: ${rotationToken?.id || 'N/A'})`);
+      console.log(`[VEO Direct] Full Payload:`, JSON.stringify(payload, null, 2));
 
       const response = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText', {
         method: 'POST',
@@ -1167,7 +1174,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }]
       };
 
-      console.log(`[Image to Video] Payload:`, JSON.stringify(videoPayload, null, 2));
+      console.log(`[Image to Video] === GENERATION DETAILS ===`);
+      console.log(`[Image to Video] Scene ID: ${sceneId}`);
+      console.log(`[Image to Video] Aspect Ratio: ${aspectRatio} (${aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE"})`);
+      console.log(`[Image to Video] Video Model: ${aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_0_r2v_fast_ultra"}`);
+      console.log(`[Image to Video] Reference Image Media ID: ${mediaGenId}`);
+      console.log(`[Image to Video] Prompt: "${prompt}"`);
+      console.log(`[Image to Video] Token: ${rotationToken?.label || 'Environment Variable'} (ID: ${rotationToken?.id || 'N/A'})`);
+      console.log(`[Image to Video] Full Payload:`, JSON.stringify(videoPayload, null, 2));
 
       const videoResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoReferenceImages', {
         method: 'POST',
@@ -1672,6 +1686,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           videoModelKey: aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_0_r2v_fast_ultra"
         }]
       };
+
+      console.log(`[Image to Video Regenerate] === REGENERATION DETAILS ===`);
+      console.log(`[Image to Video Regenerate] Video ID: ${videoId}`);
+      console.log(`[Image to Video Regenerate] Scene ID: ${sceneId}`);
+      console.log(`[Image to Video Regenerate] Aspect Ratio: ${aspectRatio} (${aspectRatio === "portrait" ? "VIDEO_ASPECT_RATIO_PORTRAIT" : "VIDEO_ASPECT_RATIO_LANDSCAPE"})`);
+      console.log(`[Image to Video Regenerate] Video Model: ${aspectRatio === "portrait" ? "veo_3_0_t2v_fast_portrait_ultra" : "veo_3_0_r2v_fast_ultra"}`);
+      console.log(`[Image to Video Regenerate] Reference Image Media ID: ${mediaGenId}`);
+      console.log(`[Image to Video Regenerate] Reference Image URL: ${referenceImageUrl}`);
+      console.log(`[Image to Video Regenerate] Prompt: "${prompt}"`);
+      console.log(`[Image to Video Regenerate] Token: ${rotationToken?.label || 'Environment Variable'} (ID: ${rotationToken?.id || 'N/A'})`);
+      console.log(`[Image to Video Regenerate] Full Payload:`, JSON.stringify(videoPayload, null, 2));
 
       const videoResponse = await fetch('https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoReferenceImages', {
         method: 'POST',
