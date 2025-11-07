@@ -1382,8 +1382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           let completed = false;
           let attempts = 0;
-          const maxAttempts = 120; // 4 minutes max (120 * 2 seconds = 240 seconds)
-          const retryAttempt = 60; // 2 minutes (60 * 2 seconds = 120 seconds)
+          const maxAttempts = 16; // 4 minutes max (16 * 15 seconds = 240 seconds)
+          const retryAttempt = 8; // 2 minutes (8 * 15 seconds = 120 seconds)
           let currentOperationName = operationName;
           let currentSceneId = sceneId;
           let currentApiKey = apiKey!;
@@ -1391,7 +1391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let hasRetriedWithNewToken = false;
 
           while (!completed && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 15000));
             attempts++;
 
             // After 2 minutes, try with next API token if not completed
@@ -1701,7 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (async () => {
         try {
           const maxWaitTime = 4 * 60 * 1000; // 4 minutes timeout
-          const pollInterval = 3000; // Poll every 3 seconds
+          const pollInterval = 15000; // Poll every 15 seconds
           const startTime = Date.now();
           let completed = false;
           let currentOperationName = operationName;

@@ -246,8 +246,8 @@ async function startBackgroundPolling(
     try {
       let completed = false;
       let attempts = 0;
-      const maxAttempts = 900; // 30 minutes max (900 attempts * 2 seconds = 1800 seconds)
-      const retryAttempt = 60; // 2 minutes
+      const maxAttempts = 120; // 30 minutes max (120 attempts * 15 seconds = 1800 seconds)
+      const retryAttempt = 8; // 2 minutes (8 * 15 seconds = 120 seconds)
       let currentOperationName = operationName;
       let currentSceneId = sceneId;
       let currentApiKey = apiKey;
@@ -255,7 +255,7 @@ async function startBackgroundPolling(
       let hasRetriedWithNewToken = false;
 
       while (!completed && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 15000));
         attempts++;
 
         // After 2 minutes, try with next API token if not completed

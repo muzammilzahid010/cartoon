@@ -206,8 +206,8 @@ export async function waitForVideoCompletion(
   maxWaitTime: number = 300000 // 5 minutes default
 ): Promise<{ videoUrl: string }> {
   const startTime = Date.now();
-  const pollInterval = 1000; // Check every 1 second
-  const initialDelay = 1000; // Wait 1 second before first check
+  const pollInterval = 15000; // Check every 15 seconds
+  const initialDelay = 15000; // Wait 15 seconds before first check
 
   // Wait initially to give the API time to process
   console.log(`[VEO3] Waiting ${initialDelay/1000}s before first status check for ${sceneId}`);
@@ -246,8 +246,8 @@ export async function waitForVideoCompletionWithUpdates(
   maxWaitTime: number = 300000 // 5 minutes default
 ): Promise<{ videoUrl: string }> {
   const startTime = Date.now();
-  const pollInterval = 1000; // Check every 1 second
-  const initialDelay = 1000; // Wait 1 second before first check
+  const pollInterval = 15000; // Check every 15 seconds
+  const initialDelay = 15000; // Wait 15 seconds before first check
 
   // Wait initially to give the API time to process
   console.log(`[VEO3] Waiting ${initialDelay/1000}s before first status check for ${sceneId}`);
@@ -265,8 +265,8 @@ export async function waitForVideoCompletionWithUpdates(
 
     console.log(`[VEO3] Polling status for ${sceneId}: ${status.status}`);
 
-    // Send status update every 10 seconds to show activity
-    if (pollCount % 10 === 0 && onStatusUpdate) {
+    // Send status update every poll to show activity
+    if (onStatusUpdate) {
       onStatusUpdate(`Still generating... (${elapsedSeconds}s elapsed)`);
     }
 
